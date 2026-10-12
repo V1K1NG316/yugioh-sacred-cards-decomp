@@ -253,3 +253,11 @@ match one of the 82 with a patched/candidate agbcc build, or list them as non-ma
 
 
 
+
+## Compiler: old_agbcc (settled by Claude, 2026-10-12 19:26)
+The game was built with **old_agbcc** (the older agbcc build pokefirered ships as `tools/agbcc/bin/old_agbcc`).
+Evidence: `sub_080045C4` (J0030) compiles to the exact ROM bytes with old_agbcc, while agbcc adds a
+`push {lr}` / `pop {r0}; bx r0` frame the ROM lacks (the "lr heuristic" class from [045], ~82 leaf functions).
+All 27 functions matched before the switch match with both compilers (tested one by one). Pilot drafts with
+old_agbcc: sub_08008B74 33 → 3 bytes off, sub_0801351C 32 → 18, sub_080144C8 40 → 25.
+`scripts/match_func.sh` / `permute_func.sh` now default to old_agbcc (override: `AGBCC=agbcc`).

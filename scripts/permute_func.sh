@@ -77,7 +77,7 @@ A=$REPO/private/tools/agbcc
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 cpp -nostdinc -undef -std=gnu89 -I "$A/include" -I "$A" -I "$REPO/include" -o "$T/c.i" "$IN"
-"$A/bin/${AGBCC:-agbcc}" -mthumb-interwork -Wimplicit -Wparentheses -O2 -fhex-asm -o "$T/c.s" "$T/c.i"
+"$A/bin/${AGBCC:-old_agbcc}" -mthumb-interwork -Wimplicit -Wparentheses -O2 -fhex-asm -o "$T/c.s" "$T/c.i"
 bash "$REPO/scripts/asm_with_defsyms.sh" "$T/c.s" "$OUT"
 COMPILE
 
