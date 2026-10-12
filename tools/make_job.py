@@ -6,13 +6,34 @@ Usage (one line):
       --instructions-file private/jobs/drafts/name_0x08001234.md [--max-attempts 2]
 A job must be small (one function / one table / one file), name every file it may change (--allowed, glob ok),
 and carry a check command that exits 0 ONLY when the work is right (run with Git Bash inside the job's worktree).
+A word `PY` in --check is expanded to the full quoted Python path. Every .py file the check names must already be
+committed on `main` (the worktree starts from main): get Claude to merge your branch first, or the job is refused.
+Each worktree gets a read-only copy of the ROM at private/baserom.gba.
 Prints the new job id. Jobs land in private/jobs/queue/ and the local worker picks them up oldest first.
 """
-import argparse, json, re, sys, time
+import argparse, json, re, subprocess, sys, time
 from pathlib import Path
 
-JOBS = Path(r'D:\Yugioh_DeComp_V2\private\jobs')
+REPO = Path(r'D:\Yugioh_DeComp_V2')
+JOBS = REPO / 'private' / 'jobs'
+PY = 'C:/Users/USER/AppData/Local/hermes/hermes-agent/.hermes-runtime/python/cpython-3.11-windows-x86_64-none/python.exe'
 KINDS = ['decompile', 'name', 'extract', 'doc', 'script', 'test', 'other']
+PREFIXES = ('d:/yugioh_decomp_v2/', '/d/yugioh_decomp_v2/', '/mnt/d/yugioh_decomp_v2/')
+
+
+def fix_check(check):
+    """Expand PY; refuse .py files in the check that are not committed on main."""
+    check = re.sub(r'(?<![\w/.-])PY(?![\w/.-])', '"%s"' % PY, check)
+    for tok in re.findall(r'[\w:/\\.-]+\.py\b', check):
+        rel = tok.replace('\\', '/')
+        if rel.lower().startswith(PREFIXES):
+            rel = rel.split('/', 3 if rel.startswith('/d/') else 2)[-1]
+            if rel.lower().startswith('yugioh_decomp_v2/'):
+                rel = rel.split('/', 1)[1]
+        r = subprocess.run(['git', '-C', str(REPO), 'cat-file', '-e', 'main:' + rel], capture_output=True)
+        if r.returncode != 0:
+            sys.exit(f'check names {tok} ({rel}), which is not committed on main: ask Claude to merge it first')
+    return check
 
 
 def next_id():
@@ -36,7 +57,7 @@ def main():
     if len(text) > 6000:
         sys.exit('instructions too long (> 6000 chars): split the job')
     job = {'id': next_id(), 'title': a.title, 'kind': a.kind, 'instructions': text,
-           'allowed_paths': a.allowed, 'check': a.check, 'max_attempts': a.max_attempts, 'attempts': 0,
+           'allowed_paths': a.allowed, 'check': fix_check(a.check), 'max_attempts': a.max_attempts, 'attempts': 0,
            'status': 'queued', 'created_by': a.created_by, 'created_at': time.strftime('%Y-%m-%dT%H:%M:%S')}
     (JOBS / 'queue').mkdir(parents=True, exist_ok=True)
     out = JOBS / 'queue' / f"{job['id']}.json"

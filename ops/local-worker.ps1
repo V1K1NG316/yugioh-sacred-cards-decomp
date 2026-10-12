@@ -34,6 +34,12 @@ while ($true) {
         git -C $Repo worktree add -q $wt -b "local/$id" main 2>&1 | Out-Null
         if (-not (Test-Path $wt)) { git -C $Repo worktree add -q $wt "local/$id" 2>&1 | Out-Null }
     }
+    # Read-only ROM copy so repo tools that use ROOT/private/baserom.gba work in the worktree.
+    $wtRom = "$wt\private\baserom.gba"
+    if (-not (Test-Path $wtRom)) {
+        New-Item -ItemType Directory -Force "$wt\private" | Out-Null
+        Copy-Item "$Repo\private\baserom.gba" $wtRom; (Get-Item $wtRom).IsReadOnly = $true
+    }
     $job | ConvertTo-Json -Depth 6 | Set-Content "$wt\JOB.json" -Encoding utf8
     $log = "$Logs\job-$id-a$attempt.log"
 
@@ -59,7 +65,8 @@ while ($true) {
     $bad     = @($changed | Where-Object { $f = $_; -not ($allowed | Where-Object { $f -like $_ }) })
     $dirty   = @(git -C $wt status --porcelain 2>$null | Where-Object { $_ -notmatch 'RESULT.md|JOB.json' })
     $guard   = & $Py -I "$Repo\tools\guard_repo.py" --repo $wt 2>&1 | Out-String; $guardOk = ($LASTEXITCODE -eq 0)
-    & $Py -I "$Repo\tools\hash_rom.py" | Out-Null; $romOk = ($LASTEXITCODE -eq 0)
+    & $Py -I "$Repo\tools\hash_rom.py" | Out-Null
+    $romOk = ($LASTEXITCODE -eq 0) -and ((Get-FileHash $wtRom -Algorithm SHA1).Hash -eq 'D3710031520D9CDAE70D870C60B1667285FE5230')
     $pass = ($check.code -eq 0) -and ($bad.Count -eq 0) -and ($dirty.Count -eq 0) -and $guardOk -and $romOk -and ($changed.Count -gt 0)
 
     $tail = ($check.out -split "`n" | Select -Last 25) -join "`n"
