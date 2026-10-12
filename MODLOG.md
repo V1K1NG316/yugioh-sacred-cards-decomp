@@ -185,3 +185,10 @@
   stubs placed at their addresses.
 - Gates: `guard_repo.py` 65 files, 0 failures; `hash_rom.py` ORIGINAL OK / BASEROM OK;
   `git check-ignore -q` = 1 on each of the 13 new files.
+
+## 2026-10-12 07:53 — Claude: approvals from Matter_Scatter (overnight)
+- 07:50: Ghidra + portable JDK download approved (TASK [019]).
+- 07:53: decomp-permuter and asm-differ download approved; DeepSeek installs them after [019] (portable, under
+  `private/tools/`, recorded in `docs/credits.md`).
+- Overnight: Matter_Scatter asked Claude to accept what the agents need while they sleep; Claude caps overnight
+  DeepSeek spend at project total $4.20 (was $1.19 at 07:47) and keeps the project rules (no system installs).
