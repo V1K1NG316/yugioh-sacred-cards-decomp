@@ -3,7 +3,7 @@
 # Takes private\jobs\queue\*.json oldest first. Each job runs in its own git worktree on branch local/<id>.
 # The WORKER (not the model) decides pass/fail: job check command + allowed paths + repo guard + ROM hash.
 # Pause: create the file private\jobs\STOP (delete it to resume). Ctrl+C stops the loop.
-param([int]$MaxNudges = 4, [int]$IdleSeconds = 60)
+param([int]$MaxNudges = 4, [int]$IdleSeconds = 60, [switch]$Once)   # -Once: run at most one job, then exit
 . "$PSScriptRoot\common.ps1"
 
 function Say($s, $c = 'Gray') { Write-Host "[$(Get-Date -Format HH:mm:ss)] $s" -ForegroundColor $c }
@@ -18,7 +18,7 @@ Say "local worker started (model $LocalModel). Queue: $Jobs\queue" 'Green'
 while ($true) {
     if (Test-Path "$Jobs\STOP") { Say 'paused (private\jobs\STOP exists)' 'Yellow'; Start-Sleep $IdleSeconds; continue }
     $file = Get-ChildItem "$Jobs\queue" -Filter *.json -ErrorAction SilentlyContinue | Sort-Object Name | Select -First 1
-    if (-not $file) { Start-Sleep $IdleSeconds; continue }
+    if (-not $file) { if ($Once) { Say 'queue empty'; break }; Start-Sleep $IdleSeconds; continue }
 
     $job  = Get-Content -LiteralPath $file.FullName -Raw -Encoding utf8 | ConvertFrom-Json
     $id   = $job.id
@@ -80,4 +80,5 @@ while ($true) {
         Save $job "$Jobs\failed\$id.json"; Remove-Item -LiteralPath $run
         Say "   FAIL $id - out of attempts, handed back to DeepSeek" 'Red'
     }
+    if ($Once) { break }
 }

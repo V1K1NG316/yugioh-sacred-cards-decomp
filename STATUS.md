@@ -1,13 +1,13 @@
 # STATUS — Yugioh_DeComp_V2
 
-_Generated 2026-10-12 05:43 by `tools/status.py`. Do not edit by hand._
+_Generated 2026-10-12 05:49 by `tools/status.py`. Do not edit by hand._
 
 ## DeepSeek budget
 - Spent since 2026-10-12T05:40: **$0.00** of the $30 stop (balance $35, $5 reserve). Remaining before stop: **$30.00**.
 - Computed from Hermes token counts at the 2026-10-12 bill prices (out $1.20/M, miss $0.30/M, hit $0.006/M).
 
 ## Who did the work (agent output tokens in this project)
-- Local Qwen: 0 sessions, 0 tokens · DeepSeek: 0 sessions, 0 tokens · **local share n/a**
+- Local Qwen: 3 sessions, 2,233 tokens · DeepSeek: 1 sessions, 84 tokens · **local share 96%**
 
 ## Local job queue (worker: running or idle)
 | queued | running | passed, awaiting critics | merged | rejected by critics | failed → DeepSeek |
