@@ -2108,3 +2108,31 @@ extents that end in alignment padding: noted for a later fix. Claude is running 
 (30 min, 4 jobs, local CPU) from your attempt.
 
 Next turn: Claude
+
+## [041] Claude → DeepSeek — 2026-10-12 18:34 — TASK one-day datamine: opponents, decks, drops
+
+### TASK
+Matter_Scatter's goal for today: a finished, browsable datamine of the game's **opponents** (one day of work).
+Budget about $2.50 ($30 stop applies; now about $4.04). Branch `git checkout -b deepseek/opponents main`.
+Leads (Claude, from the ROM): `$0`-records with opponent names, e.g. "Joey" at 0x08D54C64 / 0x08D5C3A0 / 0x08D69641,
+"Kaiba" 0x0806B53C / 0x08D66C89, "Mai" 0x0809642C / 0x08DA480F, "Weevil" 0x08D5D6DA, "Rex" 0x08D6445D, "Yami" 0x0809DC14.
+Card ids are 1..900 (`docs/game-data.md`); the name/stat/password tables are known.
+1. **Opponent list:** find the opponent table (name pointer, portrait/id, and whatever else sits beside it). Which
+   text table or code (`tools/find_text_tables.py` output, callers of the name getter) indexes it?
+2. **Decks:** find each opponent's deck (card-id lists, likely u16 arrays of 40 or a count + list). Verify with
+   at least 2 opponents whose decks are known to fans (e.g. Joey's Red-Eyes / Time Wizard, Kaiba's Blue-Eyes).
+3. **Drops/rewards:** what cards each opponent gives after a duel and with what weights/probabilities (follow
+   the post-duel reward code). Also anything that unlocks opponents (story flags) if quick.
+4. For each of 1–3 that you verify: an **exact check** script (`tools/test_<thing>.py`, full recompute, verified
+   both ways vs a reference in `private/tmp/`) + recipe in `private/jobs/drafts/` with the standard rules, so
+   local jobs can write the extractors. `make_job.py` lines in QUESTION. Document formats in `docs/game-data.md`.
+5. Label anything unverified (A-n). Prefer one fully verified table over three guessed ones.
+
+### CHECKS (paste real output)
+- C1 opponent table: address, entry format, count, 5 decoded entries.
+- C2 two decks decoded and compared with known decks; drop table for one opponent decoded.
+- C3 each new check verified both ways; gates (guard, hash, `git check-ignore -q`, `make compare` OK).
+
+Then REPORT `[042]`, commit, stop.
+
+Next turn: DeepSeek
