@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sacred Cards Opponents</title>
+<style>
+  :root { --bg:#f6f5f2; --panel:#ffffff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e2e0da; --accent:#7a4cc2; --bar:#cdb8f0; --chip:#efeaf8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#16151a; --panel:#211f27; --ink:#ecebef; --muted:#a3a1ab; --line:#34313d; --accent:#b894f5; --bar:#5b3f8f; --chip:#2c2836; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position:sticky; top:0; z-index:2; background:var(--bg); border-bottom:1px solid var(--line); padding:14px 16px; }
+  h1 { margin:0 0 6px; font-size:20px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 10px; }
+  .tools { display:flex; gap:8px; flex-wrap:wrap; }
+  input[type=search] { flex:1 1 260px; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); font-size:15px; }
+  label.chk { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:13px; }
+  main { max-width:1100px; margin:0 auto; padding:14px 16px 40px; }
+  details { background:var(--panel); border:1px solid var(--line); border-radius:10px; margin:0 0 10px; }
+  summary { cursor:pointer; padding:12px 14px; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; list-style:none; }
+  summary::-webkit-details-marker { display:none; }
+  .dn { font-weight:650; }
+  .id { color:var(--muted); font-size:13px; }
+  .tag { background:var(--chip); color:var(--accent); border-radius:999px; padding:1px 8px; font-size:12px; }
+  .body { padding:0 14px 14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; }
+  h3 { margin:6px 0 6px; font-size:14px; color:var(--muted); font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  td { padding:3px 4px; border-bottom:1px solid var(--line); vertical-align:top; }
+  td.n { text-align:right; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .card { cursor:help; }
+  .pct { position:relative; min-width:84px; }
+  .pct span { position:relative; z-index:1; }
+  .pct i { position:absolute; left:0; top:3px; bottom:3px; background:var(--bar); border-radius:3px; opacity:.7; }
+  #tip { position:fixed; pointer-events:none; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; box-shadow:0 6px 24px rgba(0,0,0,.18); display:none; max-width:280px; z-index:5; }
+  .note { color:var(--muted); font-size:12.5px; margin:16px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Yu-Gi-Oh! The Sacred Cards: opponents</h1>
+  <p class="sub">Decks and drop chances for all 200 duel records, read from the game's own tables. Private datamine; nothing here is shared.</p>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Search an opponent or a card (e.g. Keith, Blue-Eyes)">
+    <label class="chk"><input id="named" type="checkbox"> only named opponents</label>
+  </div>
+</header>
+<main id="list"></main>
+<div id="tip"></div>
+<script>
+const DATA = __DATA__;
+const C = DATA.cards, list = document.getElementById('list'), tip = document.getElementById('tip');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cardName = id => (C[id] ? C[id].n : '#' + id);
+function cardCell(id) { return '<span class="card" data-c="' + id + '">' + esc(cardName(id)) + '</span>'; }
+function listTable(items) {
+  let h = '<table>';
+  for (const [id, p] of items) h += '<tr><td>' + cardCell(id) + '</td><td class="n pct"><i style="width:' + Math.min(100, p * 4) + '%"></i><span>' + (p < 0.1 ? p.toFixed(3) : p.toFixed(2)) + '%</span></td></tr>';
+  return h + '</table>';
+}
+function sharedSection() {
+  let h = '';
+  for (const [i, s] of Object.entries(DATA.shared)) {
+    if (s.placeholder) continue;
+    h += '<details><summary><span class="dn">Shared list #' + (+i + 1) + '</span><span class="id">' + s.items.length + ' cards · used by ' + s.n + ' duels</span></summary><div class="body"><div>' + listTable(s.items) + '</div></div></details>';
+  }
+  return h;
+}
+function render() {
+  const q = document.getElementById('q').value.trim().toLowerCase(), onlyNamed = document.getElementById('named').checked;
+  const out = [];
+  for (const du of DATA.duels) {
+    if (onlyNamed && !du.name) continue;
+    const label = du.name || ('Duel ' + du.id);
+    const allCards = du.deck.map(x => x[0]).concat(...du.lists.filter(l => l.items).map(l => l.items.map(i => i[0])));
+    if (q && !label.toLowerCase().includes(q) && !allCards.some(id => cardName(id).toLowerCase().includes(q))) continue;
+    let h = '<details' + (q ? ' open' : '') + '><summary><span class="dn">' + esc(label) + '</span><span class="id">duel #' + du.id + '</span>';
+    if (du.conf) h += '<span class="tag">name: ' + esc(du.conf) + ' confidence</span>';
+    h += '</summary><div class="body"><div><h3>Deck (40 cards)</h3><table>';
+    for (const [id, n] of du.deck) { const c = C[id] || {}; h += '<tr><td class="n">' + n + '×</td><td>' + cardCell(id) + '</td><td class="n">' + (c.atk == null ? (c.type || '') : c.atk + '/' + c.def) + '</td></tr>'; }
+    h += '</table></div>';
+    for (const l of du.lists) {
+      if (l.shared !== undefined) {
+        const s = DATA.shared[l.shared];
+        h += '<div><h3>' + esc(l.label) + '</h3><p class="sub">' + (s.placeholder ? 'Placeholder (' + esc(cardName(s.items[0][0])) + ' only), shared by ' + s.n + ' duels: probably not used for this duel.' : 'Shared list #' + (l.shared + 1) + ' (' + s.items.length + ' cards, used by ' + s.n + ' duels): see the top of the page.') + '</p></div>';
+        continue;
+      }
+      h += '<div><h3>' + esc(l.label) + ' · ' + l.items.length + ' cards</h3>' + listTable(l.items) + '</div>';
+    }
+    out.push(h + '</div></details>');
+  }
+  list.innerHTML = (q ? '' : sharedSection()) + out.join('') + '<p class="note">Chance = the card\'s share of the game\'s roll (0–2047, or 0–29999 for the rare list). Which list a duel uses (e.g. by win quality) is still being confirmed. Names come from each duel\'s own dialogue; unnamed duels show their number.</p>';
+}
+document.addEventListener('mousemove', e => {
+  const t = e.target.closest && e.target.closest('.card');
+  if (!t) { tip.style.display = 'none'; return; }
+  const c = C[t.dataset.c]; if (!c) return;
+  tip.innerHTML = '<b>' + esc(c.n) + '</b> #' + t.dataset.c + '<br>' + (c.atk == null ? esc(c.type || 'Spell/Trap') : 'ATK ' + c.atk + ' / DEF ' + c.def + ' · Lv ' + c.lv + '<br>' + esc(c.type) + ' · ' + esc(c.attr)) + '<br>Cost ' + c.cost;
+  tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 14, innerWidth - 290) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+});
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('named').addEventListener('change', render);
+render();
+</script>
+</body>
+</html>
