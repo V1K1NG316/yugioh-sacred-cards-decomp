@@ -42,7 +42,7 @@ cp "$SRCDIR/$NAME.c" "$W/$NAME.c"
 
 # pokefirered's agbcc invocation, minus its charmap preprocessor (we have no charmap yet).
 cpp -nostdinc -undef -std=gnu89 -I "$A/include" -I "$A" -I "$REPO/include" -o "$W/$NAME.i" "$W/$NAME.c"
-"$A/bin/agbcc" -mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm -o "$W/$NAME.s" "$W/$NAME.i"
+"$A/bin/${AGBCC:-agbcc}" -mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm -o "$W/$NAME.s" "$W/$NAME.i"
 # A constant the C names (`extern u8 gUnk_0201FCC0[]`) becomes the address in that name, exactly
 # as `make` does it in build_matched.sh (`.set gUnk_0201FCC0, 0x0201FCC0`), so the object holds the
 # ROM's own constant instead of a relocation. Calls to other functions keep their relocation.
