@@ -105,3 +105,28 @@ and then the whole-ROM SHA-1 decides.
   whatever sits between two functions, so a non-zero tail would make the build fail loudly.
 - The extent (A5) is not a proven function length. A C body that is too short but is followed by
   zero bytes in the ROM would pass; nothing has seen that case yet.
+
+## 8. Ghidra decompiler drafts (`scripts/ghidra_drafts.sh`)
+
+`tools/match_func.py` decides pass/fail; Ghidra only helps a writer understand what a function
+*means*. It runs headless (no GUI, no licence prompt) on `private/baserom.gba`:
+
+1. `scripts/ghidra_setup.sh` (once) downloads the Java runtime and Ghidra into `private/tools/`,
+   checking each file against the SHA-256 its project publishes.
+2. `scripts/ghidra_drafts.sh` imports the ROM as raw binary, language `ARM:LE:32:v4t` at
+   `0x08000000`, and for every row of `config/functions.csv` sets the CPU mode (`TMode` 0 = ARM,
+   1 = THUMB), disassembles from that address and creates a function named as the CSV names it —
+   so a call to another known function reads `sub_080243A0`, not `FUNC_080243a0`.
+   `tools/ghidra/GbaDecompDrafts.java` does that (`funcs` mode); the analysis pass is deliberately
+   *after* it, because Ghidra's own analysis assumes ARM everywhere and would disassemble the THUMB
+   code the wrong way first.
+3. The same script then decompiles each of those functions and writes `private/ghidra/<name>.c` —
+   a **draft**. Its own header says so: types, loops and branch conditions are useful, but the C is
+   machine output and does not compile to the ROM's bytes with agbcc. The disassembly stays the
+   truth for every instruction.
+4. Re-runs reuse the analysed project in `private/ghidra/project/`; `--only <name>` decompiles a
+   single function without re-importing or re-analysing (seconds, not minutes).
+
+`tools/make_decomp_job.py` quotes the draft's absolute path in a job's recipe when the file exists,
+with the same warning: read it, do not copy it.
+
