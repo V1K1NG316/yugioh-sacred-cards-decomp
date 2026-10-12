@@ -3,8 +3,22 @@
 # Takes private\jobs\queue\*.json oldest first. Each job runs in its own git worktree on branch local/<id>.
 # The WORKER (not the model) decides pass/fail: job check command + allowed paths + repo guard + ROM hash.
 # Pause: create the file private\jobs\STOP (delete it to resume). Ctrl+C stops the loop.
-param([int]$MaxNudges = 4, [int]$IdleSeconds = 60, [switch]$Once)   # -Once: run at most one job, then exit
+param([int]$MaxNudges = 4, [int]$IdleSeconds = 60, [int]$AttemptMinutes = 30, [switch]$Once)   # -Once: run at most one job, then exit
 . "$PSScriptRoot\common.ps1"
+
+# Run hermes with a hard deadline for the whole attempt (J0012 looped for 4 h without one).
+# On timeout the process tree is killed by its exact PID. Returns $true if it timed out.
+function Run-Hermes([string]$argline, $log, [datetime]$deadline) {
+    $tmp = "$log.part"
+    $proc = Start-Process -FilePath $Hermes -ArgumentList $argline -NoNewWindow -PassThru `
+                          -RedirectStandardOutput $tmp -RedirectStandardError "$tmp.err"
+    $ms = [int][Math]::Max(1000, ($deadline - (Get-Date)).TotalMilliseconds)
+    $timedOut = -not $proc.WaitForExit($ms)
+    if ($timedOut) { & taskkill.exe /T /F /PID $proc.Id 2>&1 | Out-Null; [void]$proc.WaitForExit(15000) }
+    Get-Content -LiteralPath $tmp, "$tmp.err" -ErrorAction SilentlyContinue | Add-Content -LiteralPath $log -Encoding utf8
+    Remove-Item -LiteralPath $tmp, "$tmp.err" -ErrorAction SilentlyContinue
+    return $timedOut
+}
 
 function Say($s, $c = 'Gray') { Write-Host "[$(Get-Date -Format HH:mm:ss)] $s" -ForegroundColor $c }
 function Save($job, $path) { $job | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $path -Encoding utf8 }
@@ -53,12 +67,14 @@ while ($true) {
     # D:\Yugioh_DeComp_V2\src instead of its worktree).
     $mainBefore = @(git -C $Repo status --porcelain --untracked-files=all 2>$null)
     $t0 = Get-UnixNow
-    & $Hermes -z $p -m $LocalModel -t terminal,file,todo --in $wt 2>&1 | Out-File $log -Encoding utf8
+    $deadline = (Get-Date).AddMinutes($AttemptMinutes)
+    $timedOut = Run-Hermes "-z `"$p`" -m $LocalModel -t terminal,file,todo --in `"$wt`"" $log $deadline
     $sid = Get-NewestSession $wt $t0
-    for ($n = 1; $n -le $MaxNudges -and $sid -and -not (Test-Path "$wt\RESULT.md"); $n++) {
+    for ($n = 1; -not $timedOut -and $n -le $MaxNudges -and $sid -and -not (Test-Path "$wt\RESULT.md"); $n++) {
         Say "   nudge $n" 'DarkGray'
-        & $Hermes -z $nudge -m $LocalModel -t terminal,file,todo --in $wt --resume $sid 2>&1 | Out-File $log -Append -Encoding utf8
+        $timedOut = Run-Hermes "-z `"$nudge`" -m $LocalModel -t terminal,file,todo --in `"$wt`" --resume $sid" $log $deadline
     }
+    if ($timedOut) { Say "   TIMEOUT after $AttemptMinutes min - process tree killed" 'Yellow' }
 
     # Judge (never trust the model's own claims).
     $check   = Run-Bash $wt $job.check

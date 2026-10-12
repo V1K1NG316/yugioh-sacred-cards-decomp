@@ -60,6 +60,9 @@ style to copy, #4 is the only test that counts.
    - A `FAIL` line prints the first differing offset, both byte strings, and a side-by-side
      disassembly with the differing instructions marked. Read it: `rom` is the truth, `ours` is
      your C.
+   - The END of the asm tells you the return type: `pop {r0}` + `bx r0` means the function returns
+     NOTHING (`void`; r0 only carries the return address). `pop {r1}` + `bx r1` means it returns a
+     value in r0. A callee whose result is unused can be declared `void`. Do not fight this rule.
    - Common causes of a near miss: operands in the wrong order (`sub` vs reversed), a variable gcc
      can remove (write the expression in one go instead of storing to a temporary), signed vs
      unsigned (`ldrsb` vs `ldrb`), or an `if` gcc turns into a conditional move.
