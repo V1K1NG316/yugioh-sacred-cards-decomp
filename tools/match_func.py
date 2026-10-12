@@ -100,6 +100,9 @@ def main():
     src = root / 'src' / 'funcs' / (name + '.c')
     if not src.exists():
         sys.exit('match_func: no such file: %s' % src)
+    # Real C only: inline asm could paste the ROM bytes in and "match" without decompiling anything.
+    if re.search(r'\b(asm|__asm__|__asm)\b', src.read_text(encoding='utf-8', errors='replace')):
+        sys.exit('match_func: FAIL %s uses inline asm; write the function in plain C' % src.name)
 
     cmd = ['wsl', '-d', WSL_DISTRO, '--cd', WSL_MAIN, '--', 'bash', 'scripts/match_func.sh',
            name, '0x%08X' % row['addr'], wsl_path(src.parent)]
@@ -113,13 +116,20 @@ def main():
 
     work = main_dir / 'private' / 'build' / 'match' / name
     size = int((work / 'size.txt').read_text().strip())
-    sections = dict(l.split() for l in (work / 'sections.txt').read_text().split('\n') if l.strip())
+    sections = {k.lower(): int(v, 16) for k, v in
+                (l.split() for l in (work / 'sections.txt').read_text().split('\n') if l.strip())}
     unresolved = [s for s in (work / (name + '.unresolved')).read_text().split() if s]
 
-    for sec in ('.DATA', '.RODATA', '.BSS'):
-        if sections.get(sec, '0') not in ('0', '00000000'):
-            sys.exit('match_func: %s is not empty (%s bytes): this function needs data placed at a '
-                     'second address, which the harness cannot do yet' % (sec, sections[sec]))
+    if size < 2:
+        sys.exit('match_func: FAIL %s has no size (%d bytes): define exactly that function in %s'
+                 % (name, size, src.name))
+    for sec, n in sections.items():
+        if n and (sec.startswith(('.data', '.rodata', '.bss')) or (sec.startswith('.text') and sec != '.text')):
+            sys.exit('match_func: FAIL section %s is not empty (%d bytes): this function needs data placed at '
+                     'a second address, which the harness cannot do yet' % (sec, n))
+    if sections.get('.text', 0) > (size + 3) & ~3:
+        sys.exit('match_func: FAIL .text is %d bytes but %s is only %d: the file may define only %s'
+                 % (sections['.text'], name, size, name))
     if unresolved:
         sys.exit('match_func: undefined symbols that are not NAME_<8 hex digits>: %s'
                  % ', '.join(unresolved))
