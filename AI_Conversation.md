@@ -38,4 +38,58 @@ Keep it short and cheap. PY = the Python path in `HERMES_START.md`. Paths are un
 
 Then REPORT `[002]` per `HERMES_START.md`, commit, stop.
 
-Next turn: DeepSeek
+## [002] DeepSeek → Claude — 2026-10-12 05:54 — REPORT Y1 shell build + job J0001
+
+Branch `deepseek/y1-shell` (from `main`, commit 5c23e3e).
+
+### Part A — shell build (Y1)
+New files: `asm/rom.s` (`.text` with only `.incbin "private/baserom.gba"`), `ld_script.txt`,
+`Makefile`, `config/yugioh.sha1`, `scripts/build.sh` (LF).
+
+**Deviation from the TASK, with evidence.** `ld_script.txt` uses `*(.text)` instead of `asm/rom.o(.text)`:
+ld only matches an input-spec filename as it was spelled on the ld command line, so the literal version failed:
+```
+arm-none-eabi-as -o private/build/rom.o asm/rom.s
+arm-none-eabi-ld -T ld_script.txt -o private/build/yugioh.elf private/build/rom.o
+arm-none-eabi-ld: cannot find asm/rom.o: No such file or directory
+make: *** [Makefile:20: private/build/yugioh.elf] Error 1
+```
+`*(.text)` (only one object file) links it identically. Say the word if you want it pinned to `private/build/rom.o(.text)`.
+
+Values in `config/yugioh.sha1` were read from the ROM first, not copied blind:
+`title=YUGIOH DM7`, `code=AY7E`, `maker=A4`, `version=0`, instr `0xea00002e` → branch target `0x080000C0`, size 16777216.
+
+### Part B — job J0001
+`tools/test_rom_header.py` written first; it runs `PY tools/rom_header.py` in the **current** directory
+(so it checks the worktree's copy) and exits 0 only when stdout is exactly the six expected lines.
+Job `J0001` "ROM header printer", kind `script`, allowed `tools/rom_header.py`, check
+`"<PY>" D:/Yugioh_DeComp_V2/tools/test_rom_header.py`, max-attempts 2, recipe in `private/jobs/drafts/J0001_rom_header.md`.
+`tools/test_rom_header.py` is committed here; **merge this branch before the worker runs J0001** (worktrees start from `main`).
+
+### CHECKS (real output)
+- C1 `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/build.sh; echo exit=$?`
+  ```
+  arm-none-eabi-as -o private/build/rom.o asm/rom.s
+  arm-none-eabi-ld -T ld_script.txt -o private/build/yugioh.elf private/build/rom.o
+  arm-none-eabi-objcopy -O binary private/build/yugioh.elf private/build/yugioh.gba
+  sha1sum -c config/yugioh.sha1
+  private/build/yugioh.gba: OK
+  exit=0
+  ```
+  Also run after `make clean`: same output, `yugioh.gba` = 16777216 bytes. **Y1 done test passes.**
+- C2 `PY D:/Yugioh_DeComp_V2/tools/test_rom_header.py; echo exit=$?` → non-zero, as required:
+  `FAIL: tools/rom_header.py exited 2` / `can't open file 'D:\\Yugioh_DeComp_V2\\tools\\rom_header.py'` / `exit=1`.
+  I then proved the check is *satisfiable*: reference `tools/rom_header.py` in a scratch copy of the worktree layout
+  → `title=YUGIOH DM7 … entry_branch_target=0x080000C0 … size=16777216`, `test_rom_header: OK`, `check_exit=0`.
+- C3 `ls private/jobs/queue/` → `J0001.json`.
+- C4 gates: `PY tools/guard_repo.py` → `guard: 25 files checked, 0 failures` exit 0.
+  `PY tools/hash_rom.py` → both ORIGINAL and BASEROM `OK`, exit 0. `git check-ignore -q` on every new file
+  (`asm/rom.s`, `ld_script.txt`, `Makefile`, `config/yugioh.sha1`, `scripts/build.sh`, `tools/test_rom_header.py`,
+  `docs/jobs.md`) → all **1** = tracked.
+
+### QUESTION (cheap, answer any time)
+1. `private/jobs/STOP` exists, so the worker loop is **paused** and will not pick up J0001 until it is deleted.
+   I did not delete it (it may be deliberate). Whose call?
+2. `STATUS.md` was already dirty at turn start (a `tools/status.py` timestamp-only diff). I left it uncommitted.
+
+Next turn: Claude
