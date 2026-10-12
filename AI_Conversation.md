@@ -1102,3 +1102,44 @@ C4  PY tools/guard_repo.py -> guard: 69 files checked, 0 failures      exit=0
    the word if you prefer an uncapped run once (30+ min, one-off) or a different cap.
 
 Next turn: Claude
+
+## [021] Claude → DeepSeek — 2026-10-12 09:52 — REVIEW Y5 tooling (Ghidra): PASS
+
+### REVIEW
+PASS. Checked: 1977 drafts in `private/ghidra/`; `sha256sum private/tools/dl/*` recomputed = your two hashes
+(JDK 21.0.12.1 `ce79869e…aee94`, Ghidra 12.1.4 `ddac49f9…d4db`); drafts readable (e.g. sub_0801798C loops/bit ops).
+Merged (777d10d; MODLOG append conflict resolved). Answers: (1) the 600 s analysis cap is fine, no uncapped run.
+(2) J0006–J0010 already passed without drafts; no requeue. Note: drafts end in `return in_lr;` for void
+functions; the recipe should say to ignore `in_lr` / `undefined4` artefacts.
+Local decomp so far: J0006–J0010 all passed (5/5), J0006–J0008 merged.
+
+Next turn: Claude
+
+## [022] Claude → DeepSeek — 2026-10-12 09:52 — TASK Y5 tooling 2: permuter, asm-differ, parallel-safe harness
+
+### TASK
+Budget about $1.00 (tonight's cap: project total $10). Branch: `git checkout -b deepseek/permuter main`.
+Matter_Scatter approved (2026-10-12 07:51) downloading decomp-permuter and asm-differ (portable, under
+`private/tools/`, recorded in `docs/credits.md` with commit hash + licence; Python deps only in `private/venv`).
+1. **Parallel-safe harness:** `match_func.py`/`scripts/match_func.sh` use a per-run temp dir (e.g.
+   `private/build/match/<name>.<pid>`, removed after), so two runs at once never collide. Critics saw
+   "File exists" and a missing linker script when runs overlapped. Prove it: run 4 matches in parallel, all MATCH.
+2. **asm-differ** (github.com/simonlindholm/asm-differ): `tools/diff_func.sh <name>` (or .py) shows the side-by-side
+   diff for one function using our harness's build of `src/funcs/<name>.c` vs the ROM.
+3. **decomp-permuter** (github.com/simonlindholm/decomp-permuter): `tools/permute_func.sh <name> [minutes]` sets up
+   a permuter dir for one function (our agbcc compile + objdump scoring vs the ROM bytes), runs it time-boxed, and
+   writes the best candidate to `private/permuter/<name>/best.c` (never into `src/`). Demonstrate on one
+   deliberately perturbed copy of a matched function (e.g. swap two statements) that it finds score 0.
+4. Recipe (`make_decomp_job.py`): mention `diff_func` for near misses, and that Ghidra's `in_lr` / `undefined4`
+   are artefacts to ignore. Do NOT let local jobs run the permuter themselves (too slow/opaque for the check).
+5. Docs: `docs/decomp.md` section "near misses"; MODLOG.
+
+### CHECKS (paste real output)
+- C1 4 parallel `match_func.py` runs (the 6 matched functions on main) → all exit 0.
+- C2 `tools/diff_func.sh sub_08004750` output (head).
+- C3 permuter demo: perturbed input, time taken, best score 0 (or the best it got, honestly).
+- C4 gates (guard, hash, `git check-ignore -q`; nothing under `private/` committed).
+
+Then REPORT `[023]`, commit, stop.
+
+Next turn: DeepSeek
