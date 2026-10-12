@@ -91,6 +91,10 @@ while ($true) {
         Move-Item -LiteralPath "$Repo\$p" "$q\$id-$($p -replace '[\\/]', '_')" -Force
         $bad += "MAIN:$p"
     }
+    # Tracked files under src/ deleted or renamed away in the main checkout during the job (seen around J0012):
+    # restore them and fail the job.
+    $gone = @(git -C $Repo status --porcelain 2>$null | Where-Object { $mainBefore -notcontains $_ -and $_ -match '^ D src/' })
+    foreach ($g in $gone) { $p = $g.Substring(3); git -C $Repo checkout -- $p 2>&1 | Out-Null; $bad += "MAIN-DELETED:$p" }
     $dirty   = @(git -C $wt status --porcelain 2>$null | Where-Object { $_ -notmatch 'RESULT.md|JOB.json' })
     $guard   = & $Py -I "$Repo\tools\guard_repo.py" --repo $wt 2>&1 | Out-String; $guardOk = ($LASTEXITCODE -eq 0)
     & $Py -I "$Repo\tools\hash_rom.py" | Out-Null
