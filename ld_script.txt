@@ -1,0 +1,11 @@
+/* Linker script: one output section, the whole ROM, at the GBA cartridge origin. */
+MEMORY
+{
+    rom (rx) : ORIGIN = 0x08000000, LENGTH = 32M
+}
+
+SECTIONS
+{
+    /* *(text) = the linked ROM object's .text; ld only matches input-spec names as spelled on the command line. */
+    .text : { *(.text) } > rom
+}
