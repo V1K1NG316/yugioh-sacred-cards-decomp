@@ -157,7 +157,6 @@ def decode_address(addr, rom_data, glyph_tab):
 
 
 def main():
-    sys.stdout.reconfigure(encoding="utf-8", newline="\n")  # exact UTF-8 + LF on Windows too (critics J0034)
     glyph_tab = load_glyph_table()
     rom_data = ROM_PATH.read_bytes()
     
