@@ -63,6 +63,8 @@ style to copy, #4 is the only test that counts.
    - The END of the asm tells you the return type: `pop {{r0}}` + `bx r0` means the function returns
      NOTHING (`void`; r0 only carries the return address). `pop {{r1}}` + `bx r1` means it returns a
      value in r0. A callee whose result is unused can be declared `void`. Do not fight this rule.
+     The same rule decides how you DECLARE a function you call: open its asm file
+     (`D:/Yugioh_DeComp_V2/private/asm/funcs/<callee>.s`) and look at ITS end: `pop {{r0}}` = declare it `void`.
    - Common causes of a near miss: operands in the wrong order (`sub` vs reversed), a variable gcc
      can remove (write the expression in one go instead of storing to a temporary), signed vs
      unsigned (`ldrsb` vs `ldrb`), or an `if` gcc turns into a conditional move.
