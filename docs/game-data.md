@@ -299,3 +299,85 @@ vase" is Dragon Piper's own text (the card is drawn as a creature in a pot).
 - Base `0x08D4F43C` is referenced once, at `0x080341FC` (likely the password-entry screen).
 - Open (A-n pending): Matter_Scatter recalls a password purchase had a **cost**; test whether the code near
   `0x080341FC` reads the `w_08088DF0` column (now called "cost") as the price.
+
+## Opponents, decks and drops (verified, DeepSeek 2026-10-12)
+
+**The table**: `0x08D35C28` is a pointer table of **exactly 200** little-endian words; word k is the
+address of duel record k, and the records are 40 bytes each starting at `0x080B4B5C`
+(`record(k) = 0x080B4B5C + 0x28*k` for every k in 0..199 — checked for all 200, `PY
+tools/test_duel_table.py`).
+
+**What indexes it** (this is the "opponent table" of the TASK): the story-script bytecode
+interpreter `sub_08031E40` dispatches on `#<digit>`; case 8 (`#8 <id>`) at `0x08031FC6` does
+`ldrb r0,[r0,#1]` (the byte after the `8`) and `strh r0,[0x02020D30 + 0x10]`. The duel code
+`sub_080164EC` then reads exactly that word as the table index:
+`ldrh r0,[0x02020D30+0x10]; lsls r0,#2; ldr r0,[0x08D35C28 + r0]`; `sub_08016254` and
+`sub_08016408` use the same index. So `<id>` = duel number = table index, and the same byte is the
+index into the deck/record data. **129 `#8 <id>` opcodes** exist in the ROM's data half
+(`>= 0x08D00000`, every one followed by the record's `00` terminator), covering **92 distinct duel
+ids (1..102)**; each sits in the pre-duel dialogue record, which is extracted with its English
+line in `private/extracted/duel_scripts.tsv`.
+
+**Record layout** (40 bytes = 10 words, `+0x00`..`+0x24`), all fields read back from the ROM and
+cross-checked against the three code sites that read them:
+| offset | type | meaning | evidence |
+|---|---|---|---|
+| `+0x00` | u16, u16 | duel id in the low half, a second id/flag in the high half (values 0..95 / 0..6) | unverified beyond the values themselves (A22) |
+| `+0x04` | u32 | pointer to the opponent's **deck**: 40 × u16 card ids (id 0 = empty slot; all-zero = "no deck", e.g. records 0, 48, 50-53) | record 1 → `0x080E7CC0` = 40 ids; content matches the duelist (below) |
+| `+0x08` | u32 | weighted list A: `u16 card id, u16 cumulative weight`, ends at the first id 0; rolled 0..2047 | `sub_0801649C` |
+| `+0x0C` | u32 | weighted list B, same shape; rolled 0..29999 | `sub_08016768` (random 0x752F) |
+| `+0x10` | u32 | weighted list C, same shape; rolled 0..2047 | `sub_0801649C` (the other of `+0x34`/`+0x3C` in the duel struct) |
+| `+0x14` | u16, u16 | written `0x1F40/0x1F40` (8000/8000) in all 200 records | unverified (A22) |
+| `+0x18` | u32 | small count; read into `0x02020D30+0x0C` by `sub_08016254` (values 0, 5, 10, 30) | unverified (A22) |
+| `+0x1C` | u16, u16 | life-point-like pair: 2000/2000, 7000/7000, 8000/8000, 500/500, 1000/1000 … | unverified (A22) |
+| `+0x20` | u8 | switch value 0..15 used by `sub_080164EC` to pick a step of 10/100/1000/10000 | purpose unverified (A22) |
+| `+0x24` | u16 | values 32..42 and 139 | unverified (A22) |
+
+**The drop model** (verified by the two readers, and by content): a list entry is chosen when the
+roll is *below* its cumulative weight, so entry i covers `(w[i-1], w[i]]` of the roll space and its
+chance is `(w[i] - w[i-1]) / (R+1)` with R = 2047 (`+0x08`, `+0x10`) or 29999 (`+0x0C`). That is
+also the invariant the check enforces on all 200 records: every non-empty `+0x08`/`+0x10` list ends
+on weight **2047** (93 / 102 lists), every non-empty `+0x0C` list ends on **29999** (103 lists), all
+ids are 1..900 and weights strictly increase. Decoded example — duel 59 (Bonz), list `+0x08`,
+6 entries, 16.65% each: The Snake Hair (36), Armored Zombie (96), Dragon Zombie (97), Clown Zombie
+(98), Stop Defense (320), Yami (335). Duel 93 (Bandit Keith), list `+0x08`, 15 entries: 7.18% The
+Snake Hair, then ~7.1% each Armored Zombie, Dragon Zombie, Clown Zombie, Stop Defense, Pendulum
+Machine, Launcher Spider, Zoa, Metalzoa, Metalmorph, … (`private/tmp/opp/drops.py`). The list at
+`+0x0C` is an 885-entry near-uniform pool over the whole card list (~0.02% each) — the shared
+"random card" table.
+
+**Identified opponents** (deck content, checked against the game's own dialogue):
+- **duel 93 = Bandit Keith** — his own line (in the record that carries the `#8` opcode) says "I'm
+  Bandit Keith. However far I fall, I'll keep crawling back up." Deck: Machine Conversion Factory,
+  Pendulum Machine, Zoa, Metalzoa, Yaiba Robo, Giga-Tech Wolf, Dharma Cannon, Patrol Robo,
+  Metalmorph, Slot Machine, Space Drone, Blast Sphere, Barrel Dragon, 7 Completed — a machine deck,
+  and his drops are Zoa/Metalzoa/Metalmorph/Machine Conversion Factory.
+- **duel 59 (and 79) = Bonz** — "I'm Bonz, the undying"; "Bonz, the undead, shall duel forever!"
+  Deck: 16 Zombie + 33/40 Fiend-attribute cards (Skull Servant, Pumpking the King of Ghosts, Mech
+  Mole Zombie, Phantom Ghost, Bone Mouse, Thousand-Eyes Idol, Shadow Specter), drops all zombie
+  cards.
+- **insect decks (A23)**: duels 40/57 ("the insect army", "I'll show you how strong an insect deck
+  can be") run 17/40 Insect + 12 Plant + 9 Beast with 26/40 Forest attribute; duel 58 ("My insect
+  deck is the strongest") runs **28/40 Insect**, 34/40 Forest.
+- **duel 69 (A23)**: 3× Water Element, 3× The Furious Sea King, 3× Kanikabuto, 3× Turtle Raccoon,
+  3× Penguin Soldier, 3× Liquid Beast, 3× Boneheimer, 3× Twin Long Rods — a pure sea/aqua deck
+  (the game's own text names Mako Tsunami as the sea-deck duelist).
+- No record in this table contains Blue-Eyes White Dragon (1) at all; Red-Eyes B. Dragon (82)
+  appears once each in duels 19 and 27 (A23).
+
+**Opponent names: there is no name table** (negative result, checked two ways). The rule-A11 scan
+for `$0`-record pointer tables finds 15 tables, all identified (card names, descriptions, credits,
+duel messages, type/attribute names, effect texts, NPC dialogue lists, location labels) and none
+holds opponent names; repeating the scan at every byte alignment (not only 4-aligned) and with a
+64-byte gap allowance adds nothing new (35 runs, same set). The 200 duel records have no name field
+either. Opponent names exist only *inside* dialogue text — either as the addressee in a line
+("Joey Wheeler% you just wait…") or, usefully, as a self-introduction in the duel's own pre-duel
+line (that is how duels 59/79/93 were identified above). Finding the full duel → NPC → name map
+needs the map/NPC tables, which is a separate job.
+
+**Tools**: extractor `tools/duel_table.py` → `private/extracted/duel_table.tsv` (200 rows, one per
+record), `duel_decks.tsv` (card ids + names per duel, 42 distinct decks) and `duel_scripts.tsv`
+(129 opcode sites). Check `tools/test_duel_table.py` (full recompute of all three files plus the
+structural invariants above; `ALL CHECKS PASSED`). A second check `tools/test_duel_rewards.py` is
+in place for the local job that writes `tools/duel_rewards.py` (raw lists with card names and
+`chance_ppm`); recipe `private/jobs/drafts/duel_rewards.md`.
