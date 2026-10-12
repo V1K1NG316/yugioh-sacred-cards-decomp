@@ -62,3 +62,14 @@ text tool, without spending DeepSeek tokens on five languages of byte rules.
 from the ROM (`0x08D310E4`, `0x08E94E7C`) → `private/extracted/card_descriptions.tsv` (900 lines, 152 373
 bytes). Check: `PY tools/test_card_descriptions.py`. Recipe: `private/jobs/drafts/card_descriptions.md`. Purpose:
 the A12 result as data, one line per card, ready for the in-game spot checks.
+
+## Batch drafted 2026-10-12 (DeepSeek, opponents turn)
+
+Purpose: turn the verified duel/opponent data into repeatable local jobs instead of DeepSeek turns.
+- `tools/duel_rewards.py` — writes `private/extracted/duel_rewards.tsv`: every card of every duel
+  deck plus every entry of the three weighted drop lists with card names and `chance_ppm`. Check
+  `tools/test_duel_rewards.py` (full recompute from the ROM, exact byte compare + row counts) is
+  authored and committed **before** the job is queued. Recipe `private/jobs/drafts/duel_rewards.md`.
+  Queue with (from REPORT `[042]`):
+  `PY D:/Yugioh_DeComp_V2/tools/make_job.py --title "duel reward tables" --kind extract --allowed tools/duel_rewards.py --check "PY tools/test_duel_rewards.py" --instructions-file private/jobs/drafts/duel_rewards.md --created-by DeepSeek`
+  — only runnable once `tools/test_duel_rewards.py` is on `main` (Claude merges this turn).

@@ -156,3 +156,32 @@ Every labelled guess (A1..An) and where it is marked.
 
 - **A-disp1 (Claude, 2026-10-12 15:47)** — card picture layout/palette (A20/A21) and the cost-table indexing are DISPUTED; see
   AI_Conversation [037]. Do not rely on `docs/game-data.md` picture or Dark Magician/Red-Eyes cost values yet.
+
+- **A22** — duel-record fields `+0x00` (two u16), `+0x14` (8000/8000 in all 200 records),
+  `+0x18`, `+0x1C` (a life-point-like pair), `+0x20` (a 0..15 switch) and `+0x24` (32..42 and 139)
+  of the 200 duel records at `0x08D35C28` are read back exactly (reproducible with
+  `PY tools/duel_table.py`) but their **meaning is not established**; only `+0x18` has a code
+  reader found so far (`sub_08016254` copies it to `0x02020D30+0x0C`). Worth noting: `sub_080164EC`
+  uses the `+0x20` byte to choose between steps of 10 / 100 / 1000 / 10000, which reads like
+  life-point display animation, but that screen was never driven in the emulator.
+  (DeepSeek, 2026-10-12)
+- **A23** — opponent *identity* for every duel except 59, 79 (Bonz) and 93 (Bandit Keith) is
+  inferred from deck content, not read from a name field: e.g. duels 40/57/58 are called
+  "insect" duellists because the game's own pre-duel line says so and their decks are 17/40 and
+  28/40 Insect; duel 69 is called a sea/aqua deck because 30 of its 40 cards are Aqua/Fish/Sea
+  Dragon/Reptile typed; "no Blue-Eyes deck exists in this table" and "Red-Eyes B. Dragon appears
+  once in duels 19 and 27" are exact ROM facts, but attaching the *names* Joey/Kaiba/Mako to those
+  duels is a fan-knowledge mapping, not a ROM lookup. (DeepSeek, 2026-10-12)
+- **A24** — the 129 `#8 <id>` opcodes were found by scanning for the byte pair `23 38` at or above
+  `0x08D00000` with the id byte after it and the enclosing text record taken as the nearest `$0`
+  preceded by `00`. Every hit satisfies "byte after the id is 0x00" and "id < 200", and the
+  opcode's meaning is read from `sub_08031E40` case 8, but no *negative* scan for false positives
+  (an ordinary text string reading "#8…" inside a message) was done, and a second duel-start path
+  (e.g. the opcode at case 9, `0x08032004`) was not decoded. The 92 distinct ids are a lower bound
+  on how many of the 200 records the story uses. (DeepSeek, 2026-10-12)
+- **A25** — the deck interpretation (word `+0x04` = the opponent's 40-card deck) rests on the
+  structure (40 u16, all ids 1..900 or all zero) and on content agreement with the duel's own
+  dialogue (Bonz zombie deck + zombie drops, Bandit Keith machine deck + machine drops), *not* on
+  having read the code that loads the deck at duel start. If that turns out to be, e.g., a card
+  *pool* rather than a deck, the file layout is unaffected but the wording in `docs/game-data.md`
+  is. (DeepSeek, 2026-10-12)
