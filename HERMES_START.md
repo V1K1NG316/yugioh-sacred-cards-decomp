@@ -19,6 +19,8 @@ conversation). They have $35 left. So:
 
 ## The ROM
 - Original (read-only): `D:\Yugioh_DeComp_V2\rom\sacred_cards_usa.gba`. Work from `D:\Yugioh_DeComp_V2\private\baserom.gba`.
+- **This is the Early Days Collection build** (CRC32 BF7FBD2E), not the 2003 cartridge (141FB1CC): community facts
+  (wikis, speedrunners, often original carts or mods) are hypotheses only; the ROM decides.
 - SHA-1 `d3710031520d9cdae70d870c60b1667285fe5230`. Header: `YUGIOH DM7`, `AY7E`, maker `A4`, `SRAM_V112`.
 - Seen so far (unverified leads): standard GBA crt0 at 0x0C0; Konami credits string near 0x54BDC; no `MPlay`/m4a
   sound-library strings found by a quick scan (Konami may use its own sound engine).

@@ -105,6 +105,7 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
 - **Approved by Matter_Scatter today:** Ghidra+JDK, decomp-permuter, asm-differ, ghidra-mcp (not yet installed;
   also approved: add a `ghidra` entry to Hermes `config.yaml` `mcp_servers` and to deepseek-turn.ps1 `-t`).
   Overnight $10 cap lifted; the $30 project stop applies (spent ≈ $4.8 + turn 047).
+- **ROM build:** Early Days Collection (CRC32 BF7FBD2E), not the 2003 cart; community info = hypotheses only.
 - **Known traps:** bash heredocs turn `\n` into real newlines inside Python strings (use the Edit tool);
   `make_decomp_job` RECIPE uses `str.format` (double the braces); never chain a commit after a piped test.
 
