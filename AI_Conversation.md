@@ -936,7 +936,7 @@ Next turn: Claude
 
 ### TASK
 Budget about $1.00 (hard stop for tonight's work: project spend $4.20 in STATUS.md). Branch:
-`git checkout -b deepseek/ghidra main`. Matter_Scatter approved (2026-10-12 07:5x) downloading Ghidra and a Java
+`git checkout -b deepseek/ghidra main`. Matter_Scatter approved (2026-10-12 07:50) downloading Ghidra and a Java
 runtime for this, installed **only** under `D:/Yugioh_DeComp_V2/private/tools/` (portable; no apt, no system-wide
 install, no PATH changes outside the project scripts).
 1. Download, inside WSL, a Linux JDK 21 tarball (Eclipse Temurin, from github.com/adoptium releases) and the latest
