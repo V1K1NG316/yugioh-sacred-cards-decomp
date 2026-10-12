@@ -1,6 +1,7 @@
 # ROM map — Yu-Gi-Oh! The Sacred Cards (GBA, USA, `AY7E`)
 
-Milestone Y2, part 1 (entry, compiler evidence, first function census). Written 2026-10-12 by DeepSeek.
+Milestone Y2, part 1 (entry, compiler evidence, first function census) and part 2 (function-pointer
+seeds, extents/sizes, code/data map). Written 2026-10-12 by DeepSeek.
 Scope of this document: what was **observed** in `private/baserom.gba` (SHA-1
 `d3710031520d9cdae70d870c60b1667285fe5230`, 16777216 bytes) with `scripts/dis_range.sh`, and what is still
 unverified. Everything below marked "unverified" is a lead, not a fact.
@@ -63,7 +64,8 @@ Everything else in the ROM is reached from these four entry points (plus the two
 
 ## 3. Compiler (finding + one labelled guess)
 
-Evidence collected this turn:
+Evidence collected this turn (counts are from the part-1 census of 158 functions; the census is now
+1034 — see §4 — the return-idiom split below was not recomputed, so treat 155 as a sample):
 
 1. **Mixed mode.** Of the 158 function starts found so far, **155 are THUMB and 3 are ARM**, and the
    3 ARM ones are exactly the startup stub (`reset`, `crt0`, `irq_handler`). All C code is THUMB.
@@ -88,31 +90,109 @@ to compile one ROM function with `agbcc` and compare bytes (`make compare` terri
 
 ## 4. Function census (verified output of `tools/find_functions.py`)
 
-`config/functions.csv`, header `address,name,mode,source`; 158 rows, sorted, unique:
-155 THUMB, 3 ARM. Lowest `0x08000000`, highest `0x0803B5AC`.
-Checked by `tools/test_functions_csv.py` (exit 0): header, uniqueness, sorting, range, alignment,
-the four step-1 entry points, row count >= 150, and for 20 fixed-seed random THUMB rows that a real
-THUMB `BL` in the ROM targets the address (32440 `BL` targets found over the whole ROM).
+`config/functions.csv`, header `address,name,mode,size,source`; **1034 rows**, sorted, unique:
+1031 THUMB, 3 ARM (exactly the startup stub of §2). Lowest `0x08000000`, highest `0x0803B5AC`.
+By `source` column:
 
-Sources: `reset_vector`, `reset_branch`, `crt0_writes_0x03007FFC`, `crt0_bx_literal_0x0800021C`,
-`irq_table_entry`, `bl_thumb`, `bl_arm`, `blx_thumb` (the `source` column).
+| source | rows | what it means |
+|---|---|---|
+| `ptr_prologue` | 681 | target of an odd `0x08xxxxx1` pointer word whose head is a THUMB `push {…, lr}` |
+| `bl_thumb` | 347 | target of a THUMB `BL` inside an accepted function |
+| `irq_table` | 2 | `0x08003B70`, `0x08003B94` (interrupt stubs, §2) |
+| `reset_vector` / `reset_branch` / `crt0_writes_0x03007FFC` / `crt0_bx_literal_0x0800021C` | 1 each | the four entry points of §2 |
 
-**Coverage is deliberately conservative and is NOT a complete function list.** 13 further targets
-were seen only as pointer values loaded from a literal pool; they were not walked into (A2). Two
-known gaps: the region `0x080064C8`-`0x08016800` and most of the ROM above `0x0803B5AC` contain
-plausible code (e.g. the instruction sequence at `0x08010000` is valid THUMB) that no `BL` from the
-158 functions reaches, i.e. it is reached through jump tables / function-pointer tables. Growing this
-census (pointer tables, whole-ROM `BL` sweep, prologue detection) is the next Y2 step.
+Seeds, in the order the finder uses them:
 
-**Unverified beyond this point:** whether `0x0803B5AC` is the real end of the code region; whether the
-code region continues above it in another block; the sizes of the functions (only starts are recorded).
+1. the four entry points of §2;
+2. the interrupt table at `0x0807F420` (`irq_table`);
+3. a whole-ROM sweep of 4-aligned words holding an odd `0x08xxxxx1` ROM address (`ptr_prologue`):
+   833 such words were found, 681 targets were accepted, **none** were refused by the decode rule
+   (A4) and **20 were refused by the proximity rule** (A6). All 20 sit in the data half of the ROM;
+   the nearest is 312 660 bytes (`0x4C554`) away from any BL-closure function, and the furthest
+   *accepted* one is 22 564 bytes (`0x5824`) away — a two-order-of-magnitude separation, not a
+   tuned threshold. The 20 rejected targets are listed in REPORT `[008]`.
+4. BL closure over everything accepted so far: 347 new `bl_thumb` targets. **A BL target is
+   accepted without any decode filter** — a real function need not begin with a prologue (the
+   interrupt stubs at `0x08003B94` are a single `bx lr`).
 
-## 5. How to reproduce
+**Sizes (A5).** `size = min(walk_end, next_function_start) - address` where `walk_end` is where the
+linear walk stopped: past the last instruction it visited (a return, an unconditional branch, or the
+16 KiB cap). Bounding by the next function start keeps extents disjoint by construction, and
+`tools/test_functions_csv.py` verifies disjointness independently.
+
+Checked by `tools/test_functions_csv.py` (exit 0): exact header; uniqueness, sorting, range;
+alignment and unit-sized extents; the six entry addresses; `rows >= 1000`; **no overlapping
+extents**; every `ptr_prologue` row really begins with `B5xx`; and **every `bl_thumb` row is the
+target of a THUMB `BL` whose own address lies inside the extent of another listed function**. The
+last one replaces the part-1 check, which counted `BL`-shaped halfwords anywhere in the ROM (data
+included) and so accepted almost any even address ([006] finding 2). It is falsifiable: adding a
+fake row `0x080FFF00,sub_080FFF00,thumb,4,bl_thumb` to the CSV makes the check exit 1
+(`FAIL 0x080FFF00 bl_thumb: no THUMB BL into it from inside another extent`).
+
+**Still not a complete census.** 26 pointer values reached only through `ldr rX,[pc,#imm]` + `bx rX`
+are not walked into (A2); 3 of them are now in the census anyway because a *table* word also points
+at them. Whether every real function start is present is **unverified** — the finder only knows
+entry points, interrupt stubs, BL targets and prologue-shaped pointer targets, and it cannot see
+code reached only by a computed jump (A1).
+
+## 5. Code/data map
+
+`tools/code_map.py` (read-only report over `config/functions.csv` + the ROM):
+
+```
+ROM: 16777216 bytes (0x08000000..0x09000000)
+functions: 1034  code bytes: 64170 (0.38% of the ROM)
+code region: 0x08000000..0x0803B5D0 (26.39% of it is function extents)
+```
+
+So the game code is a **single block, `0x08000000`–`0x0803B5D0`** (243 152 bytes, ~237 KiB), of which the finder
+accounts for 64 170 bytes (26.4%) in function extents; the rest of the block is literal pools,
+padding between functions, and the tables below. Not one accepted function lies above
+`0x0803B5AC` — the 20 pointer-shaped words pointing higher were rejected by A6.
+
+Gaps larger than 4 KiB **inside** the code block (bytes at the gap start, classified):
+
+| gap | size | first bytes look like |
+|---|---|---|
+| `0x08004318`–`0x080058AC` | 5524 B | valid THUMB — code the finder missed (A1/A6 leads) |
+| `0x0800D0DE`–`0x0800ED58` | 7290 B | not code-like (table/data) |
+| `0x080145AA`–`0x08015B08` | 5470 B | not code-like (table/data) |
+| `0x0801A5EE`–`0x0801E940` | 17234 B | not code-like (table/data) |
+| `0x08031DA4`–`0x08033D64` | 8128 B | valid THUMB — code the finder missed (A1/A6 leads) |
+
+The two "valid THUMB" gaps are the honest leftovers: ~13.6 KiB of code-shaped bytes that no seed,
+BL or accepted pointer table reaches. They are leads for a later job, not part of the census.
+
+First cut at the data half — 1 MiB blocks after the code end (A7, all guesses):
+
+| block | zero | ASCII | odd ROM-pointer words | guess |
+|---|---|---|---|---|
+| `0x08100000` | 53.1% | 17.1% | 308 | mixed tables + padding (A7) |
+| `0x08200000` | 61.8% | 12.1% | 730 | mostly padding + tables (A7) |
+| `0x08300000` | 14.5% | 30.9% | 1484 | tables + text (A7) |
+| `0x08400000` | 25.0% | 18.3% | 772 | mixed data (A7) |
+| `0x08500000` | 21.8% | 12.5% | 250 | mixed data (A7) |
+| `0x08600000`–`0x08800000` | ~2% | ~36% | ~700 | long ASCII runs — text block (A7) |
+| `0x08900000` | 18.8% | 31.4% | 1844 | tables + text (A7) |
+| `0x08A00000` | 4.9% | 12.9% | 1653 | dense binary (graphics?) (A7) |
+| `0x08B00000` | 2.0% | 14.6% | 1728 | dense binary (graphics?) (A7) |
+| `0x08C00000` | 15.2% | 14.9% | 1310 | mixed data (A7) |
+| `0x08D00000` | 3.6% | 67.8% | 2941 | text-heavy block (card text?) (A7) |
+| `0x08E00000` | 0.3% | 54.9% | 21 | text, no pointers (A7) |
+| `0x08F00000` | 1.3% | 0.2% | 1 | raw binary, no text, no pointers (A7) |
+
+The `J0002` ASCII-string dump (`private/extracted/strings.txt`, 57 622 runs) is the dataset that
+can turn the A7 guesses into facts; the job passed on 2026-10-12 06:14 and its output lands in
+`private/`, which is not part of this branch.
+
+## 6. How to reproduce
 
 ```
 wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/dis_range.sh 0x080000C0 0x08000200
 PY tools/find_functions.py && PY tools/test_functions_csv.py
+PY tools/code_map.py
 ```
 
 `docs/approximations.md` A1 (finder is a linear-scan heuristic), A2 (pointer-only targets skipped),
-A3 (compiler guess).
+A3 (compiler guess), A4 (THUMB decode-validity rule), A5 (how `size` is derived), A6 (proximity rule
+for pointer-table candidates), A7 (data-region guesses).

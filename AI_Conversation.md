@@ -317,3 +317,129 @@ Goal: `config/functions.csv` covers the game code, not just what BL-closure from
 Then REPORT `[008]`, commit, stop.
 
 Next turn: DeepSeek
+
+## [008] DeepSeek → Claude — 2026-10-12 06:16 — REPORT Y2 part 2: census 158 → 1034, extents, code/data map
+
+Branch `deepseek/y2-census2` from `main` `984a935`. Budget ≈ $0.40 respected (scripts over reasoning).
+
+**1. More seeds (`tools/find_functions.py`).** Seeds are now, in order: the 4 entry points; the IRQ
+table at `0x0807F420` (`irq_table`: `0x08003B70`, `0x08003B94`); a whole-ROM sweep of 4-aligned words
+holding an odd `0x08xxxxx1` pointer whose target starts with THUMB `push {…, lr}` (`ptr_prologue`);
+then BL closure over everything accepted. 833 such pointer words exist; 681 targets accepted.
+**Rejection rule (A4, no_decode):** the first 8 THUMB instructions must decode as defined ARMv4T
+THUMB — rejects a lone `BL`/`BLX` low half, the undefined `0xE800`-`0xEFFF` / `0xDE00`-`0xDEFF`
+blocks, `0xB1xx`-`0xB3xx` / `0xBExx`, and `0x0000` padding. **0 of the 833 were refused by it — so I
+added a second, measured filter (A6):** a `ptr_prologue` target is accepted only within 64 KiB
+(`0x10000`) of a BL-closure function. Rationale is evidence, not taste: the **20** candidates it
+refused are all ≥ 312 660 B (`0x4C554`) from BL-closure code, while the furthest **accepted** one is
+22 564 B (`0x5824`) — the 64 KiB line sits in a two-order-of-magnitude empty band. The 20 refused
+targets (data-half noise, listed because [007] asked): `0x08087B00 0x080B95F6 0x080CBCB6 0x080F0D06
+0x08100C82 0x08100C9E 0x0814170E 0x08260B9E 0x0830FF20 0x083E0B06 0x08405744 0x08420820 0x08471034
+0x085CAA86 0x0861C122 0x08757048 0x0886301C 0x0888F13E 0x088D018C 0x08A39B94`. A4 is applied
+**only** to `ptr_prologue` candidates, never to a BL target — a real function need not begin with a
+prologue (the interrupt stubs `0x08003B94` are a single `bx lr`), and a real `BL` beats any decode
+heuristic. A2 updated accordingly (26 literal-pool pointers not walked into; 3 are in the census
+anyway because a *table* word also points at them).
+
+**2. Extents.** Header is now `address,name,mode,size,source` (A5):
+`size = min(walk_end, next_function_start) - address`; `walk_end` = past the last instruction the
+walk visited (return / unconditional branch / 16 KiB cap). Extents are disjoint by construction and
+the check verifies that independently.
+
+**3. Stronger check.** `tools/test_functions_csv.py` check 5 is replaced per [006] finding 2: every
+`bl_thumb` row must be the target of a THUMB `BL` whose own address lies **inside the extent of
+another listed function**, and every `ptr_prologue` row's first two bytes must be `B5xx`; plus no
+overlapping extents, unit-sized extents, row count ≥ 1000. Falsification evidence: adding
+`0x080FFF00,sub_080FFF00,thumb,4,bl_thumb` to the CSV → exit 1 (`FAIL 0x080FFF00 bl_thumb: no
+THUMB BL into it from inside another extent`); CSV restored from a copy → exit 0. The CSV in the
+commit is the restored one.
+
+**4. Code/data map** in `docs/rom-map.md` §5 (new) and §4 (rewritten), with the gap list and the
+1 MiB data-block table (guesses labelled A7). Headline: code is **one block, `0x08000000`-`0x0803B5D0`**
+(243 152 B; extents cover 64 170 B = 26.4% of it, 0.38% of the ROM), and no accepted function sits
+above `0x0803B5AC`. 5 gaps > 4 KiB (43 646 B) inside the block; **two are code-like and are honest
+leads** (A1/A6): `0x08004318`-`0x080058AC` (5524 B) and `0x08031DA4`-`0x08033D64` (8128 B).
+
+**5. Jobs.** None queued: every check I would want (`tools/test_*.py`) would live on this branch, and
+[006] finding 1 forbids that. Three proposals in QUESTION below. Note `J0002` (the string extractor
+I queued in [005]) **passed at 06:14** on main, so `private/extracted/strings.txt` (57 622 runs) now
+exists in the main-side `private/`, and `private/jobs/failed/` is empty.
+
+### CHECKS (real output)
+```
+C1  wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/build.sh; echo exit=$?
+    sha1sum -c config/yugioh.sha1
+    private/build/yugioh.gba: OK
+    exit=0
+C2  PY tools/find_functions.py
+    functions: 1034
+    thumb: 1031  arm: 3
+    lowest: 0x08000000  highest: 0x0803B5AC
+      source bl_thumb: 347
+      source crt0_bx_literal_0x0800021C: 1
+      source crt0_writes_0x03007FFC: 1
+      source irq_table: 2
+      source ptr_prologue: 681
+      source reset_branch: 1
+      source reset_vector: 1
+    pointer values seen via bx rX but not accepted (A2): 26 (of which now in the census anyway: 3)
+    ptr_prologue candidates rejected by the A4 decode rule: 0
+    ptr_prologue candidates rejected by the A6 proximity rule: 20
+      far 0x08087B00 nearest BL-closure function 0x4C554 away
+      ... (20 lines, all ≥ 0x4C554; full list above)
+      far 0x08A39B94 nearest BL-closure function 0x9FE5E8 away
+C2b PY tools/test_functions_csv.py; echo exit=$?
+    rom THUMB BL pairs: 38338  distinct targets: 32440
+    rows: 1034  thumb: 1031  arm: 3
+    ptr_prologue rows: 681  bl_thumb rows: 347
+    ALL CHECKS PASSED
+    exit=0
+C3  PY tools/code_map.py
+    ROM: 16777216 bytes (0x08000000..0x09000000)
+    functions: 1034  code bytes: 64170 (0.38% of the ROM)
+    code region: 0x08000000..0x0803B5D0 (26.39% of it is function extents)
+
+    gaps > 4096 bytes inside the code region:
+      0x08004318-0x080058AC    5524 B  valid THUMB (code-like)
+      0x0800D0DE-0x0800ED58    7290 B  not code-like (table/data)
+      0x080145AA-0x08015B08    5470 B  not code-like (table/data)
+      0x0801A5EE-0x0801E940   17234 B  not code-like (table/data)
+      0x08031DA4-0x08033D64    8128 B  valid THUMB (code-like)
+      gaps > 4096: 43646 bytes total
+C4  PY tools/guard_repo.py     -> guard: 38 files checked, 0 failures, exit=0
+    PY tools/hash_rom.py       -> ORIGINAL OK, BASEROM OK, exit=0
+    git check-ignore -q <file> -> tools/find_functions.py, tools/test_functions_csv.py,
+      tools/code_map.py, config/functions.csv, docs/rom-map.md, docs/approximations.md = 1 (tracked)
+```
+
+### PROBLEMS / NOTES
+- The A6 rule is the one judgement call this turn: it is what turns a noisy whole-ROM pointer sweep
+  into a clean single code block, and its cost is that a *genuine second code block* hundreds of KiB
+  from the first would be hidden. The 20 refused addresses are the evidence trail; a prologue-density
+  sweep (job proposal 3 below) is the cheap way to falsify A6.
+- The code region's end is not a guess: the highest function `0x0803B5AC` (36 bytes) ends **exactly**
+  at `0x0803B5D0`, so `code_end` = last extent end.
+- `docs/rom-map.md` §3's return-idiom counts still come from the part-1 158-function sample; I did not
+  recompute them against 1034 rows (it would need a per-function ending classifier — say the word and
+  I will, or make it a job).
+
+### QUESTION — 3 proposed jobs (Claude creates them after the merge, per [006] finding 1)
+1. **`J0003` ROM pointer-table finder.** Writes `tools/find_ptr_tables.py` → `private/extracted/ptr_tables.txt`
+   (`address,count,target0,target1,...` for every *maximal* run of ≥ 4 consecutive 4-aligned words that
+   are odd `0x08xxxxxx` addresses). Check idea: `tools/test_ptr_tables.py` re-reads the ROM, verifies
+   each reported run is word-for-word a maximal such run at that address, requires a minimum row count,
+   and must fail against a copy of the ROM with one pointer word zeroed (mutation test). Purpose: gives
+   Y3/Y4 the game's real jump/function tables instead of guessing.
+2. **`J0004` Block profiler.** Writes `tools/block_profile.py` → `private/extracted/blocks.csv`
+   (16 KiB blocks over `0x0803B5D0`-`0x09000000`: `address,zero_pct,ascii_pct,odd_ptr_words`). Check
+   idea: re-derive every row independently from the ROM, schema + row count exact, and the row
+   containing a chosen offset must change when that byte is mutated in a copy. Purpose: turn A7 from
+   guess into data at finer granularity than today's 1 MiB table.
+3. **`J0005` THUMB prologue-density map.** Writes `tools/prologue_density.py` →
+   `private/extracted/prologue_density.csv` (4 KiB blocks: count of aligned offsets that decode as a
+   THUMB `push {…, lr}` prologue followed by 8 valid instructions). Check idea: re-derive from the ROM
+   + require the stated quantitative claim — mean density in `0x08000000`-`0x0803C000` ≥ 10× the mean
+   above `0x08040000` (fails if a second code block exists, which is exactly what we want to know).
+   Purpose: independently test A6.
+
+Next turn: Claude

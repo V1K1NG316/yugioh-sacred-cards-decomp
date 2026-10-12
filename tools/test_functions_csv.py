@@ -2,17 +2,25 @@
 """Check config/functions.csv (milestone Y2, tools/find_functions.py output).
 
 Exits 0 only when every one of these holds:
-  1. the header is exactly `address,name,mode,source`;
+  1. the header is exactly `address,name,mode,size,source`;
   2. addresses are unique, sorted and inside 0x08000000..0x08FFFFFF;
-  3. thumb rows have even addresses, arm rows are 4-aligned;
+  3. thumb rows have even addresses, arm rows are 4-aligned; size >= 2 (thumb)
+     or >= 4 (arm) and the extent stays inside the ROM;
   4. the step-1 entry points are present (reset, crt0, IRQ handler, main) and
      the two handlers from the crt0's interrupt table at 0x0807F420;
-  5. there are at least MIN_ROWS rows (real result 2026-10-12: 158);
-  6. for 20 randomly chosen thumb rows (fixed seed 20261012) a THUMB `BL`
-     instruction anywhere in the ROM targets that address, or the address is
-     one of the entry points above.
+  5. there are at least MIN_ROWS rows (real result 2026-10-12: 1034);
+  6. extents (address .. address+size) never overlap each other;
+  7. every `ptr_prologue` row really begins with a THUMB `push {..., lr}`
+     prologue (first two bytes 0xB5xx);
+  8. every `bl_thumb` row is the target of a THUMB `BL` whose own address lies
+     inside the extent of another listed function.  (Check 5 of the previous
+     version accepted any even address, because it counted `BL`-shaped
+     halfwords anywhere in the ROM, data included - see [006] finding 2.)
+
+Deliberately NOT checked: that the extents are complete (a function may be cut
+short - docs/approximations.md A1) and that no call target is missing.
 """
-import random
+import bisect
 import struct
 import sys
 from array import array
@@ -23,16 +31,15 @@ CSV = REPO / 'config' / 'functions.csv'
 ROM = REPO / 'private' / 'baserom.gba'
 BASE = 0x08000000
 LIMIT = 0x08FFFFFF
-HEADER = 'address,name,mode,source'
-MIN_ROWS = 150      # real finder result was 158 rows on 2026-10-12
-SEED = 20261012
-SAMPLE = 20
+HEADER = 'address,name,mode,size,source'
+MIN_ROWS = 1000     # real finder result was 1034 rows on 2026-10-12
 
-ENTRIES = {         # step-1 / step-1-derived entry points (exempt from check 6)
+ENTRIES = {         # entry points (exempt from check 8)
     0x08000000: 'reset', 0x080000C0: 'crt0', 0x080000FC: 'irq_handler',
     0x08016928: 'main',
     0x08003B70: 'irq_table word[0]', 0x08003B94: 'irq_table words[1..13]',
 }
+NAMES_OK = ('reset', 'crt0', 'irq_handler', 'main')
 
 errors = []
 
@@ -42,12 +49,11 @@ def fail(msg):
     print('FAIL ' + msg)
 
 
-def thumb_bl_targets():
-    """Every address targeted by a THUMB BL pair, from scanning the whole ROM."""
-    rom = ROM.read_bytes()
+def thumb_bl_pairs(rom):
+    """Every (source, target) of a THUMB `BL` pair anywhere in the ROM."""
     words = array('H')
     words.frombytes(rom[:len(rom) // 2 * 2])
-    out = set()
+    out = []
     for i in range(len(words) - 1):
         hw = words[i]
         if (hw & 0xF800) != 0xF000:
@@ -58,8 +64,7 @@ def thumb_bl_targets():
         off = ((hw & 0x7FF) << 12) | ((hw2 & 0x7FF) << 1)
         if off & 0x400000:
             off -= 0x800000
-        t = (BASE + i * 2 + 4 + off) & ~1
-        out.add(t)
+        out.append((BASE + i * 2, (BASE + i * 2 + 4 + off) & ~1))
     return out
 
 
@@ -72,30 +77,36 @@ def main():
     rows = []
     for n, line in enumerate(lines[1:], start=2):
         parts = line.split(',')
-        if len(parts) != 4:
-            fail(f'line {n}: {len(parts)} fields, expected 4')
+        if len(parts) != 5:
+            fail(f'line {n}: {len(parts)} fields, expected 5')
             continue
-        addr, name, mode, source = parts
+        addr, name, mode, size, source = parts
         if mode not in ('thumb', 'arm'):
             fail(f'line {n}: bad mode {mode!r}')
         try:
-            rows.append((int(addr, 16), name, mode, source))
+            rows.append((int(addr, 16), name, mode, int(size), source))
         except ValueError:
-            fail(f'line {n}: bad address {addr!r}')
+            fail(f'line {n}: bad address/size in {line!r}')
 
+    rom_size = ROM.stat().st_size if ROM.exists() else None
     addrs = [r[0] for r in rows]
     if len(set(addrs)) != len(addrs):
         fail('addresses are not unique')
     if addrs != sorted(addrs):
         fail('addresses are not sorted')
-    for a, name, mode, source in rows:
+    for a, name, mode, size, source in rows:
+        unit = 2 if mode == 'thumb' else 4
         if not (BASE <= a <= LIMIT):
             fail(f'0x{a:08X} outside 0x08000000..0x08FFFFFF')
         if mode == 'thumb' and a % 2:
             fail(f'0x{a:08X} thumb address is odd')
         if mode == 'arm' and a % 4:
             fail(f'0x{a:08X} arm address is not 4-aligned')
-        if not name.startswith('sub_') and name not in ('reset', 'crt0', 'irq_handler', 'main'):
+        if size < unit:
+            fail(f'0x{a:08X} size {size} < {unit}')
+        if rom_size and not (a + size <= BASE + rom_size):
+            fail(f'0x{a:08X} extent runs past the ROM')
+        if not name.startswith('sub_') and name not in NAMES_OK:
             fail(f'0x{a:08X} unexpected name {name!r}')
 
     present = set(addrs)
@@ -106,18 +117,50 @@ def main():
     if len(rows) < MIN_ROWS:
         fail(f'{len(rows)} rows, minimum is {MIN_ROWS}')
 
-    targets = thumb_bl_targets()
-    print(f'rom THUMB BL targets: {len(targets)}')
-    thumbs = [r for r in rows if r[2] == 'thumb']
-    rng = random.Random(SEED)
-    sample = rng.sample(thumbs, min(SAMPLE, len(thumbs)))
-    for a, name, mode, source in sample:
-        if a in ENTRIES or a in targets:
-            print(f'  ok  0x{a:08X} {name} (source={source})')
-        else:
-            fail(f'0x{a:08X} {name}: no THUMB BL targets it and it is not an entry')
+    # 6. extents must not overlap
+    starts = addrs
+    for a, name, mode, size, source in rows:
+        i = bisect.bisect_right(starts, a)
+        if i < len(starts) and starts[i] < a + size:
+            fail(f'0x{a:08X} extent (size {size}) overlaps 0x{starts[i]:08X}')
 
-    print(f'rows: {len(rows)}  thumb: {len(thumbs)}  arm: {len(rows) - len(thumbs)}')
+    # 7. ptr_prologue rows really start with a THUMB push {...} with LR
+    if not ROM.exists():
+        sys.exit(f'FAIL missing {ROM}')
+    rom = ROM.read_bytes()
+    pp = [r for r in rows if r[4] == 'ptr_prologue']
+    for a, name, mode, size, source in pp:
+        hw = struct.unpack_from('<H', rom, a - BASE)[0]
+        if (hw & 0xFF00) != 0xB500:
+            fail(f'0x{a:08X} ptr_prologue but first bytes are 0x{hw:04X}, not 0xB5xx')
+
+    # 8. every bl_thumb row is backed by a BL that sits inside real code
+    pairs = thumb_bl_pairs(rom)
+    targets = {}
+    for src, tgt in pairs:
+        targets.setdefault(tgt, []).append(src)
+
+    def inside_other_extent(src, tgt):
+        i = bisect.bisect_right(starts, src)
+        if i == 0:
+            return False
+        j = i - 1
+        a, name, mode, size, source = rows[j]
+        return a != tgt and a <= src < a + size
+
+    bl_rows = [r for r in rows if r[4] == 'bl_thumb']
+    for a, name, mode, size, source in bl_rows:
+        srcs = targets.get(a, [])
+        if not any(inside_other_extent(s, a) for s in srcs):
+            if a in ENTRIES:
+                print(f'  entry 0x{a:08X} {name}: exempt from check 8')
+                continue
+            fail(f'0x{a:08X} bl_thumb: no THUMB BL into it from inside another extent')
+
+    print(f'rom THUMB BL pairs: {len(pairs)}  distinct targets: {len(targets)}')
+    print(f'rows: {len(rows)}  thumb: {sum(1 for r in rows if r[2] == "thumb")}  '
+          f'arm: {sum(1 for r in rows if r[2] == "arm")}')
+    print(f'ptr_prologue rows: {len(pp)}  bl_thumb rows: {len(bl_rows)}')
     if errors:
         print(f'{len(errors)} failure(s)')
         sys.exit(1)
