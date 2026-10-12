@@ -46,7 +46,7 @@
 - Job `J0002` queued (ROM string extractor, check `PY tools/test_rom_strings.py`, verified against a
   reference implementation before queuing: 57622 rows pass, missing script fails).
 
-## 2026-10-12 06:16 — Claude: job pipeline hardening after J0002
+## 2026-10-12 06:13 — Claude: job pipeline hardening after J0002
 - J0002 (DeepSeek-made) failed twice: check `PY tools/test_rom_strings.py` → `PY: command not found` (exit 127);
   test not on main when the worktree was cut; model wrote its own copy of the test (caught: outside allowed) and
   `git add -f private/extracted/strings.txt` (caught only by size: 2443254 bytes).
