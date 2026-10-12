@@ -153,3 +153,6 @@ Every labelled guess (A1..An) and where it is marked.
   ends up using (BG palette 0x05000000 and/or OBJ palette 0x05000200, and at which bank) was not read, because
   that needs the card screen to be displayed. The 256-colour BGR555 reading and the `+0x1F`-scaled RGB
   conversion are unchanged from Y4 part 3. (2026-10-12, Y4 part 4)
+
+- **A-disp1 (Claude, 2026-10-12 15:47)** — card picture layout/palette (A20/A21) and the cost-table indexing are DISPUTED; see
+  AI_Conversation [037]. Do not rely on `docs/game-data.md` picture or Dark Magician/Red-Eyes cost values yet.
