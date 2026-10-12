@@ -12,6 +12,9 @@ ROM   = $(BUILD)/yugioh.gba
 ELF   = $(BUILD)/yugioh.elf
 OBJ   = $(BUILD)/rom.o
 SRC   = private/asm/rom.s
+# The sources rom.s includes (one file per function + the data files): make must
+# rebuild when one of them is edited, e.g. by the C4 mutation test.
+PARTS = $(wildcard private/asm/funcs/*.s) $(wildcard private/asm/data/*.s)
 
 SHELL_OBJ = $(BUILD)/rom_shell.o
 SHELL_ELF = $(BUILD)/yugioh_shell.elf
@@ -26,7 +29,7 @@ $(SRC):
 	@echo "$(SRC) is missing -- generate it: wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/disasm.sh"
 	@exit 1
 
-$(OBJ): $(SRC) asm/macros.inc ld_script.txt
+$(OBJ): $(SRC) $(PARTS) asm/macros.inc ld_script.txt
 	@mkdir -p $(BUILD)
 	$(AS) -o $@ $(SRC)
 

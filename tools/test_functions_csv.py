@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check config/functions.csv (milestone Y2, tools/find_functions.py output).
+"""Check config/functions.csv (milestone Y2 + Y3: the true function list).
 
 Exits 0 only when every one of these holds:
   1. the header is exactly `address,name,mode,size,source`;
@@ -8,19 +8,25 @@ Exits 0 only when every one of these holds:
      or >= 4 (arm) and the extent stays inside the ROM;
   4. the step-1 entry points are present (reset, crt0, IRQ handler, main) and
      the two handlers from the crt0's interrupt table at 0x0807F420;
-  5. there are at least MIN_ROWS rows (real result 2026-10-12: 1034);
-  6. extents (address .. address+size) never overlap each other;
+  5. there are at least MIN_ROWS rows (real result 2026-10-12: 1977);
+  6. extents (address .. address+size) never overlap each other.  Since Y3 the
+     extent of a row runs to the next row's address, so a data table between two
+     functions counts as part of the earlier row (docs/approximations.md A5);
   7. every `ptr_prologue` row really begins with a THUMB `push {..., lr}`
      prologue (first two bytes 0xB5xx);
   8. every `bl_thumb` row is the target of a THUMB `BL` whose own address lies
      inside the extent of another listed function.  (Check 5 of the previous
      version accepted any even address, because it counted `BL`-shaped
      halfwords anywhere in the ROM, data included - see [006] finding 2.)
+  9. when private/asm/rom_full.s exists (the generated disassembly), the CSV must
+     be exactly its function-start set: same addresses, names and modes.  That is
+     the fixpoint test of scripts/disasm.sh; it is skipped when the file is
+     absent, i.e. on a fresh clone before the first disassembly run.
 
-Deliberately NOT checked: that the extents are complete (a function may be cut
-short - docs/approximations.md A1) and that no call target is missing.
+Deliberately NOT checked: that no call target is missing.
 """
 import bisect
+import re
 import struct
 import sys
 from array import array
@@ -32,7 +38,7 @@ ROM = REPO / 'private' / 'baserom.gba'
 BASE = 0x08000000
 LIMIT = 0x08FFFFFF
 HEADER = 'address,name,mode,size,source'
-MIN_ROWS = 1000     # real finder result was 1034 rows on 2026-10-12
+MIN_ROWS = 1900     # real fixpoint result was 1977 rows on 2026-10-12
 
 ENTRIES = {         # entry points (exempt from check 8)
     0x08000000: 'reset', 0x080000C0: 'crt0', 0x080000FC: 'irq_handler',
@@ -65,6 +71,27 @@ def thumb_bl_pairs(rom):
         if off & 0x400000:
             off -= 0x800000
         out.append((BASE + i * 2, (BASE + i * 2 + 4 + off) & ~1))
+    return out
+
+
+def parse_rom_full_starts(path):
+    """{(address, name, mode)} for every *_func_start macro in the generated asm.
+
+    Written out separately from tools/functions_from_rom_s.py on purpose: the check
+    must not share the code it is checking.
+    """
+    out = set()
+    lines = Path(path).read_text(encoding='utf-8').splitlines()
+    for i, line in enumerate(lines):
+        m = re.match(r'\t(thumb_func_start|arm_func_start|non_word_aligned_thumb_func_start) (\S+)$',
+                     line)
+        if not m or i + 1 >= len(lines):
+            continue
+        lm = re.match(r'^(\S+): @ 0x([0-9A-F]{8})$', lines[i + 1])
+        if not lm or lm.group(1) != m.group(2):
+            continue
+        mode = 'arm' if m.group(1) == 'arm_func_start' else 'thumb'
+        out.add((int(lm.group(2), 16), m.group(2), mode))
     return out
 
 
@@ -108,6 +135,8 @@ def main():
             fail(f'0x{a:08X} extent runs past the ROM')
         if not name.startswith('sub_') and name not in NAMES_OK:
             fail(f'0x{a:08X} unexpected name {name!r}')
+        if source == 'disasm' and not name.startswith('sub_'):
+            fail(f'0x{a:08X} source=disasm but name {name!r} is not gbadisasm-shaped')
 
     present = set(addrs)
     for a, what in ENTRIES.items():
@@ -158,6 +187,23 @@ def main():
             fail(f'0x{a:08X} bl_thumb: no THUMB BL into it from inside another extent')
 
     print(f'rom THUMB BL pairs: {len(pairs)}  distinct targets: {len(targets)}')
+
+    # 9. the CSV is exactly the function-start set of the generated disassembly
+    full = REPO / 'private' / 'asm' / 'rom_full.s'
+    if full.exists():
+        found = parse_rom_full_starts(full)
+        csv_set = {(a, name, mode) for a, name, mode, _, _ in rows}
+        if found != csv_set:
+            only_csv = sorted(csv_set - found)[:5]
+            only_asm = sorted(found - csv_set)[:5]
+            fail(f'the CSV is not the function-start set of {full.name}: '
+                 f'{len(csv_set - found)} only in the CSV {only_csv}, '
+                 f'{len(found - csv_set)} only in the asm {only_asm}')
+        else:
+            print(f'fixpoint: the CSV equals the {len(found)} function starts of {full.name}')
+    else:
+        print(f'fixpoint check skipped: {full} does not exist yet')
+
     print(f'rows: {len(rows)}  thumb: {sum(1 for r in rows if r[2] == "thumb")}  '
           f'arm: {sum(1 for r in rows if r[2] == "arm")}')
     print(f'ptr_prologue rows: {len(pp)}  bl_thumb rows: {len(bl_rows)}')

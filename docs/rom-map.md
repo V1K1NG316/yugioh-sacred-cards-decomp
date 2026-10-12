@@ -88,82 +88,96 @@ dev-kit crt0/intr, everything else THUMB C with `pop`/`bx` returns and direct BI
 rather than by ARM's own `armcc` (whose returns use `pop {…, pc}`). Not proven; the decisive test is
 to compile one ROM function with `agbcc` and compare bytes (`make compare` territory, milestone Y5).
 
-## 4. Function census (verified output of `tools/find_functions.py`)
+## 4. Function census (verified: fixpoint of the Y3 disassembly)
 
-`config/functions.csv`, header `address,name,mode,size,source`; **1034 rows**, sorted, unique:
-1031 THUMB, 3 ARM (exactly the startup stub of §2). Lowest `0x08000000`, highest `0x0803B5AC`.
-By `source` column:
+`config/functions.csv`, header `address,name,mode,size,source`; **1977 rows**, sorted, unique:
+1973 THUMB, 4 ARM (the startup stub of §2 plus `0x08036C74`). Lowest `0x08000000`, highest
+`0x0803B5AC`. By `source` column:
 
 | source | rows | what it means |
 |---|---|---|
 | `ptr_prologue` | 681 | target of an odd `0x08xxxxx1` pointer word whose head is a THUMB `push {…, lr}` |
 | `bl_thumb` | 347 | target of a THUMB `BL` inside an accepted function |
+| `disasm` | 943 | found by gbadisasm itself: a `BL` target the Y2 census could not see |
 | `irq_table` | 2 | `0x08003B70`, `0x08003B94` (interrupt stubs, §2) |
 | `reset_vector` / `reset_branch` / `crt0_writes_0x03007FFC` / `crt0_bx_literal_0x0800021C` | 1 each | the four entry points of §2 |
 
-Seeds, in the order the finder uses them:
+The Y2 seeds (`tools/find_functions.py`, §4 of the part-2 report) gave 1034 rows. The reason they
+missed 943 is measurable: the finder's `BL` closure ran *inside* census extents, and an extent ends
+at the first return, so a `BL` in the tail of a function (or in code only reachable through it) was
+never walked ([011]). Y3 fixed that by taking the function list from the disassembly itself:
+`scripts/disasm.sh` loops
 
-1. the four entry points of §2;
-2. the interrupt table at `0x0807F420` (`irq_table`);
-3. a whole-ROM sweep of 4-aligned words holding an odd `0x08xxxxx1` ROM address (`ptr_prologue`):
-   833 such words were found, 681 targets were accepted, **none** were refused by the decode rule
-   (A4) and **20 were refused by the proximity rule** (A6). All 20 sit in the data half of the ROM;
-   the nearest is 312 660 bytes (`0x4C554`) away from any BL-closure function, and the furthest
-   *accepted* one is 22 564 bytes (`0x5824`) away — a two-order-of-magnitude separation, not a
-   tuned threshold. The 20 rejected targets are listed in REPORT `[008]`.
-4. BL closure over everything accepted so far: 347 new `bl_thumb` targets. **A BL target is
-   accepted without any decode filter** — a real function need not begin with a prologue (the
-   interrupt stubs at `0x08003B94` are a single `bx lr`).
+```
+config/functions.csv -> private/asm/rom.cfg -> gbadisasm -> rom_full.s -> functions_from_rom_s.py -> config/functions.csv
+```
 
-**Sizes (A5).** `size = min(walk_end, next_function_start) - address` where `walk_end` is where the
-linear walk stopped: past the last instruction it visited (a return, an unconditional branch, or the
-16 KiB cap). Bounding by the next function start keeps extents disjoint by construction, and
-`tools/test_functions_csv.py` verifies disjointness independently.
+until the list stops changing (cap 5 loops). Real run, from scratch: loop 1 `1034 rows -> 1977` rows,
+loop 2 `function list stable at 1977 rows`. Every address that was in the list stays in it
+(a missing one is a hard error), so the loop only ever adds.
+
+Where the 1034 Y2 rows came from (unchanged, still the evidence for A4/A6): the four entry points of
+§2; the interrupt table at `0x0807F420` (`irq_table`); a whole-ROM sweep of 4-aligned words holding
+an odd `0x08xxxxx1` ROM address (`ptr_prologue`: 833 candidates, 681 accepted, none refused by the
+decode rule A4, **20 refused by the proximity rule A6** — all 20 in the data half, the nearest
+312 660 bytes (`0x4C554`) from any BL-closure function while the furthest accepted one is 22 564
+(`0x5824`) away); then BL closure over those (347 `bl_thumb` targets). The 20 rejected targets are
+listed in REPORT `[008]`.
+
+The one function the Y3 loop added that is **ARM** is `0x08036C74` (12 bytes, `source=disasm`) —
+found through a Thumb→ARM interworking call, which confirms the [011] lead that ARM code hides in
+this ROM (J0005, Claude's Thumb→ARM thunk scan, looks for the rest).
+
+**Sizes (A5).** `size` is now the distance to the **next row's address**; the last row runs to the
+sentinel `0x08FFFFFC`. The extents therefore tile the ROM by construction and are disjoint, and
+`tools/test_functions_csv.py` still verifies disjointness independently. A data table or literal pool
+between two functions belongs to the earlier row's extent — the extents are address ranges, not
+"code only".
 
 Checked by `tools/test_functions_csv.py` (exit 0): exact header; uniqueness, sorting, range;
-alignment and unit-sized extents; the six entry addresses; `rows >= 1000`; **no overlapping
-extents**; every `ptr_prologue` row really begins with `B5xx`; and **every `bl_thumb` row is the
-target of a THUMB `BL` whose own address lies inside the extent of another listed function**. The
-last one replaces the part-1 check, which counted `BL`-shaped halfwords anywhere in the ROM (data
-included) and so accepted almost any even address ([006] finding 2). It is falsifiable: adding a
-fake row `0x080FFF00,sub_080FFF00,thumb,4,bl_thumb` to the CSV makes the check exit 1
-(`FAIL 0x080FFF00 bl_thumb: no THUMB BL into it from inside another extent`).
+alignment and unit-sized extents; the six entry addresses; `rows >= 1900`; **no overlapping
+extents**; every `ptr_prologue` row really begins with `B5xx`; **every `bl_thumb` row is the target
+of a THUMB `BL` whose own address lies inside the extent of another listed function**; and, when
+`private/asm/rom_full.s` exists, **the CSV is exactly the function-start set of the generated
+disassembly** (same addresses, names, modes — check 9, the fixpoint test, written independently of
+`tools/functions_from_rom_s.py`).
 
-**Still not a complete census.** 26 pointer values reached only through `ldr rX,[pc,#imm]` + `bx rX`
-are not walked into (A2); 3 of them are now in the census anyway because a *table* word also points
-at them. Whether every real function start is present is **unverified** — the finder only knows
-entry points, interrupt stubs, BL targets and prologue-shaped pointer targets, and it cannot see
-code reached only by a computed jump (A1).
+**Still not a complete census.** The disassembler only decodes where the list, a `BL` or a pointer
+table sends it, so code reached only by a computed jump stays data (A1/A2). The honest leftover is
+now measurable: gbadisasm emitted no label at or above `0x0803B61C`, so everything from
+`0x0803B61C` to the end of the ROM (16 533 984 bytes, 98.6 % of the ROM) is one unlabelled data run.
+Nothing has yet proven there is no code in it — that is a Y2/Y3 open item, not a finding (A8).
 
-## 5. Code/data map
-
-`tools/code_map.py` (read-only report over `config/functions.csv` + the ROM):
+## 5. Code/data map (verified: `tools/code_map.py` over the Y3 disassembly)
 
 ```
 ROM: 16777216 bytes (0x08000000..0x09000000)
-functions: 1034  code bytes: 64170 (0.38% of the ROM)
-code region: 0x08000000..0x0803B5D0 (26.39% of it is function extents)
+functions: 1977  (thumb 1973, arm 4)
+data runs (.incbin): 243  16565922 bytes (98.74% of the ROM)
+instructions + literal pools + padding: 211294 bytes (1.26% of the ROM)
+code block: 0x08000000..0x0803B61C (243228 bytes) = everything before the first data run
+            of 1048576 bytes or more (the bulk data tail)
+
+data runs >= 4096 bytes inside the code block: 1
+  0x0800D0E8-0x0800ED58    7280 B  valid THUMB (code-like)
 ```
 
-So the game code is a **single block, `0x08000000`–`0x0803B5D0`** (243 152 bytes, ~237 KiB), of which the finder
-accounts for 64 170 bytes (26.4%) in function extents; the rest of the block is literal pools,
-padding between functions, and the tables below. Not one accepted function lies above
-`0x0803B5AC` — the 20 pointer-shaped words pointing higher were rejected by A6.
+So the game code is a **single block, `0x08000000`–`0x0803B61C`** (243 228 bytes, ~238 KiB), of which
+211 294 bytes (86.9 %) are not `.incbin` data: instructions 177 622, `.4byte` pointer words 30 372
+(7 593 words: 626 jump-table words plus 6 967 literal-pool words), `.align` padding 3 300. The
+remaining 31 934 bytes of the block are labelled data (the 7 280-byte run below and smaller ones). The
+rest of the ROM — 16 533 984 bytes, 98.6 % — is the bulk data tail.
 
-Gaps larger than 4 KiB **inside** the code block (bytes at the gap start, classified):
+Two things changed against the Y2 view of this section. First, "code bytes" no longer means the sum
+of extents: with contiguous extents that sum *is* the ROM. The instruction/pool/padding number comes
+from the disassembly instead (ROM − `.incbin` bytes). Second, the old per-gap table is not
+reproducible: those gaps are now covered by real functions, and the data runs appear as many small
+ones (a 4 KiB-plus region gets split wherever the disassembler has a label). One large run survives
+inside the block, `0x0800D0E8` (7 280 B, THUMB-shaped bytes) — the same region the Y2 report listed as
+"not code-like (table/data)", and what it really is remains open.
 
-| gap | size | first bytes look like |
-|---|---|---|
-| `0x08004318`–`0x080058AC` | 5524 B | valid THUMB — code the finder missed (A1/A6 leads) |
-| `0x0800D0DE`–`0x0800ED58` | 7290 B | not code-like (table/data) |
-| `0x080145AA`–`0x08015B08` | 5470 B | not code-like (table/data) |
-| `0x0801A5EE`–`0x0801E940` | 17234 B | not code-like (table/data) |
-| `0x08031DA4`–`0x08033D64` | 8128 B | valid THUMB — code the finder missed (A1/A6 leads) |
-
-The two "valid THUMB" gaps are the honest leftovers: ~13.6 KiB of code-shaped bytes that no seed,
-BL or accepted pointer table reaches. They are leads for a later job, not part of the census.
-
-First cut at the data half — 1 MiB blocks after the code end (A7, all guesses):
+The 1 MiB data-block profile of §5 is unchanged by Y3 (identical numbers to the earlier run), so the
+A7 table below still stands as a set of guesses:
 
 | block | zero | ASCII | odd ROM-pointer words | guess |
 |---|---|---|---|---|
@@ -189,10 +203,12 @@ can turn the A7 guesses into facts; the job passed on 2026-10-12 06:14 and its o
 
 ```
 wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/dis_range.sh 0x080000C0 0x08000200
-PY tools/find_functions.py && PY tools/test_functions_csv.py
+wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/disasm.sh   # Y3, the fixpoint loop
+wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash -c 'make compare'
+PY tools/test_functions_csv.py
 PY tools/code_map.py
 ```
 
 `docs/approximations.md` A1 (finder is a linear-scan heuristic), A2 (pointer-only targets skipped),
 A3 (compiler guess), A4 (THUMB decode-validity rule), A5 (how `size` is derived), A6 (proximity rule
-for pointer-table candidates), A7 (data-region guesses).
+for pointer-table candidates), A7 (data-region guesses), A8 (what makes a data run "data").
