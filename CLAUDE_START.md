@@ -64,6 +64,13 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   Matter_Scatter's OK; prefer TaskStop for things you started.
 - V1 (`D:\yugioh_DeComp`) is a read-only reference.
 
+## Setup state (verified by the previous Claude session, 2026-10-12 05:48)
+- Hermes updated to v0.21.7 (backup in `C:\Users\USER\AppData\Local\hermes_backups\2026-10-12_0536`).
+  Smoke tests after the update: local `qwen36-agent` 44 s, DeepSeek Flash 9 s, both correct.
+- Job pipeline tested: T0001 (pass path) passed in 39 s; T0002 (fail path) landed in `failed\`. Both archived in
+  `private\jobs\tests\`, their worktrees and branches removed. Real jobs start at J0001.
+- Live view verified: it labels `[DeepSeek]`, `[qwen36-agent]` and `[local <job>]` sessions.
+
 ## First action
 Read the three briefs. Run `PY tools\hash_rom.py`, `PY tools\guard_repo.py`, `PY tools\status.py`. Open the Live
 view and Local worker tabs. Entry [001] (TASK Y1 for DeepSeek) is already written: start that DeepSeek turn.
