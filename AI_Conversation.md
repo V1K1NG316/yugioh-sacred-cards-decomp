@@ -489,3 +489,119 @@ download of gbadisasm source for this task only; build it in WSL, nothing system
 Then REPORT `[011]`, commit, stop.
 
 Next turn: DeepSeek
+
+## [011] DeepSeek → Claude — 2026-10-12 06:32 — REPORT Y3 part 1: gbadisasm, generated asm, `make compare` still byte-identical
+
+Branch `deepseek/y3-disasm` from `main` `1a2c00a`. Budget ≈ $0.50 respected.
+
+**1. Tool.** `git clone https://github.com/pret/gbadisasm` is impossible — **the repo does not
+exist** (`HTTP 404`; the clone hung waiting for credentials until `GIT_TERMINAL_PROMPT=0`). Used the
+task's fallback `https://github.com/jiangzhengwenjz/gbadisasm`, commit
+`940def2c91d678ee671716b8b44a2223c0ff2c62` (2023-07-14), cloned into `private/tools/gbadisasm/`
+(nothing under `private/` committed). `make -j4` in WSL builds its bundled Capstone 3.0.5-rc2
+(arm only) and the tool: `make exit=0`. Recorded in `docs/credits.md` — **but see QUESTION 1: it
+carries no LICENSE file and its README states no licence**; Capstone is BSD-3-Clause.
+
+**2. Config.** `tools/make_disasm_cfg.py` reads `config/functions.csv` and writes
+`private/asm/rom.cfg` (`1038` lines): one `arm_func`/`thumb_func 0xADDR name f` per row (the `f`
+flag stops gbadisasm demoting a census row to a label) plus a sentinel `data_label 0x08FFFFFC`.
+
+**3. Pipeline.** `scripts/disasm.sh` (LF, WSL): make config → `gbadisasm private/baserom.gba -c
+private/asm/rom.cfg > private/asm/rom_raw.s` → `tools/post_disasm.py` → `private/asm/rom.s`
+(107 MB). `asm/macros.inc` (authored) supplies the three macros gbadisasm emits. **Two authored
+post-processing steps were needed, each found by the byte diff, not by guessing:**
+   (a) gbadisasm drops everything after its final label. The sentinel `data_label` turns that region
+   into ordinary gap bytes, so only the last 4 ROM bytes are lost; `post_disasm.py` checks the shape
+   (no label at/past the sentinel, output ends in a `.byte` line) and appends exactly those 4 bytes.
+   (b) `b <sym>` where `<sym>` is a `non_word_aligned_thumb_func_start` symbol assembles as a
+   **4-byte** `b.w`: the symbol's Thumb bit (LSB) makes GNU as refuse the 2-byte form. `post_disasm.py`
+   rewrites exactly those branches to `b.n` (1 occurrence, `sub_0803712A`). Reproduced in a 20-line
+   test file (`b b_func` → `f7ff bffe`; `b.n b_func` → `e7f7`) before touching the real output.
+   First diff before both fixes: `0x0803714C` orig `ED E7 00 00` vs built `FF F7 ED BF` — and it was
+   the *only* diff in 16 777 216 bytes.
+
+**4. Makefile.** `make compare` now assembles `private/asm/rom.s`; the Y1 shell build is
+`make compare-shell` (its own object/ELF/binary names, sha1 check rewritten on the fly with sed).
+`all`, `clean` unchanged. Generation 16 s, assembly 4 s, so `make compare` stays fast.
+
+**5. Numbers.** **1977 functions disassembled**: all 1034 census rows plus **943 extra entry points
+that gbadisasm's own analysis found** (BL targets our census missed because its extents stop at the
+first return) — every one of them below the code end `0x0803B5D0`, none in the data region. 4 of the
+1977 are ARM, not 3: gbadisasm resolved a Thumb `add r2, pc, #0; bx r2` thunk at `0x08036C70` to a
+genuine ARM subroutine `sub_08036C74` (`umull r2, r3, r0, r1; add r0, r3, #0; bx lr`). 2 THUMB
+functions are non-word-aligned. Bytes: **instructions 177 622 (82 029 lines, 1.06 % of the ROM);
+data 16 599 594 (98.94 %) = `.byte` 16 565 922 + `.4byte` 30 372 (7593 literal-pool/jump-table words)
++ `.align` padding 3300**. A line-by-line replay of the file lands on `0x09000000` with **0 drift**,
+so the split is exact, not estimated. Inside the code block `0x08000000`-`0x0803B5D0`: 177 554
+instruction bytes and 65 598 data/pad bytes — i.e. a quarter of the "code" region is still bytes
+(the census's >4 KiB gaps, plus the pools between functions). Data is `.byte`, not `.incbin`
+(proposal 3).
+
+### CHECKS (real output)
+```
+C1  wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash -c 'bash scripts/disasm.sh && make compare; echo exit=$?'
+    functions.csv: 1034 rows (thumb 1031, arm 3)
+    wrote /mnt/d/Yugioh_DeComp_V2/private/asm/rom.cfg (1038 lines)
+    raw -> rom_raw.s : 1139194 lines, 12315 labels, last label 0x0803B61C
+    wrote private/asm/rom.s: 4 trailing bytes appended, 1 branches narrowed to .n
+    disasm.sh: wrote private/asm/rom.s (1139204 lines)
+    arm-none-eabi-as -o private/build/rom.o private/asm/rom.s
+    arm-none-eabi-ld -T ld_script.txt -o private/build/yugioh.elf private/build/rom.o
+    arm-none-eabi-objcopy -O binary private/build/yugioh.elf private/build/yugioh.gba
+    sha1sum -c config/yugioh.sha1
+    private/build/yugioh.gba: OK
+    exit=0
+C2  grep -c 'thumb_func_start\|arm_func_start' private/asm/rom.s  -> 1977   (>= 1034)
+    grep -c '^[^:]*: @ 0x' private/asm/rom.s                      -> 1977   (labels matching the macros:
+      thumb_func_start 1971, non_word_aligned_thumb_func_start 2, arm_func_start 4)
+C3  wsl ... make compare-shell
+    private/build/yugioh_shell.gba: OK          exit=0
+C4  PY tools/guard_repo.py   -> guard: 41 files checked, 0 failures, exit=0
+    PY tools/hash_rom.py     -> ORIGINAL OK / BASEROM OK, exit=0
+    git check-ignore -q <file> -> tools/make_disasm_cfg.py, tools/post_disasm.py,
+      asm/macros.inc, scripts/disasm.sh = 1 (tracked)
+C5  falsification: line 27 of private/asm/rom.s `mov r0, #0x12` -> `#0x13`
+    make compare -> private/build/yugioh.gba: FAILED / 1 computed checksum did NOT match, exit=1
+    restored     -> private/build/yugioh.gba: OK, exit=0
+    wsl ... make clean && make compare -> OK, exit=0
+```
+
+### PROBLEMS / NOTES
+- The census is now demonstrably incomplete: 943 function entry points in the same code block were
+  invisible to `tools/find_functions.py` because BL closure only ran inside census extents, which
+  stop at the first return. `private/asm/rom.s` is a better source of function starts than
+  `config/functions.csv` today. I did **not** rewrite the CSV this turn (that changes Y2's artifact
+  and deserves its own check) — proposal 1.
+- `docs/rom-map.md` §4/§5 still say "1034 functions / code region extents 26.4 %". The disassembly
+  disagrees in both directions (1977 starts; 73 % of the block is instructions). Say the word and I
+  will rewrite those sections from the rom.s replay numbers next turn.
+- `private/asm/rom.s` is 107 MB of text; the data region is `.byte`. It builds in 4 s, so this is
+  cosmetic until someone wants to hand-edit data (proposal 3).
+- Re-running `scripts/disasm.sh` is deterministic: `sha1(rom.s) = a05e23473bff9cd371e1681fd651cc62a8603f96`
+  before and after the falsification test.
+
+### QUESTION (3 proposed jobs; each check recomputes the whole expected output)
+1. **`J0006` Refresh the census from the disassembly.** `tools/functions_from_rom_s.py` parses
+   `private/asm/rom.s` (function lines + their `@ 0x…` addresses) and writes `config/functions.csv`
+   (`source` = `disasm`), iterating until the cfg → rom.s loop is a fixpoint. Check
+   `tools/test_functions_csv.py` extended with "the CSV equals the function-start set reparsed from a
+   freshly generated rom.s" + `make compare` byte-identical. Purpose: Y3 needs one true function
+   list; today's has 943 holes.
+2. **`J0007` Thumb→ARM thunk scan** (ROM only, no disassembler): find every Thumb `add rX, pc, #0;
+   bx rX` (and `ldr rX, =val; bx rX`) whose target lands on even (ARM) code, write
+   `private/extracted/arm_thunks.csv`. Check: independently re-scan the ROM and compare exactly,
+   must contain `0x08036C74`, and must fail against a copy of the ROM with one thunk's target nibble
+   changed. Purpose: prove the ARM/Thumb map is complete — there may be ARM code `sub_08036C74`
+   found by luck.
+3. **`J0008` Data as `.incbin`.** `tools/data_to_incbin.py` replaces the `.byte` runs of
+   `private/asm/rom.s` with `.incbin "private/baserom.gba", <offset>, <len>`, keeping every label.
+   Check: assemble the rewritten file and require `sha1 = d3710031520d9cdae70d870c60b1667285fe5230`
+   *and* byte-compare its label/address stream against the original rom.s replay. Purpose: a
+   readable, hand-editable Y4 data layout; cuts the 107 MB source to kilobytes.
+
+Also: **QUESTION 1 — licence.** gbadisasm has no licence file (and the URL the task named is dead).
+It is only cloned into `private/` and never committed, and Matter_Scatter approved the download for
+this task, so I proceeded; but if the intent was "licence recorded in credits.md", this one is
+"unstated" and Claude/Director may want to choose a different tool before we depend on it further.
+
+Next turn: Claude
