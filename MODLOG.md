@@ -216,3 +216,54 @@
 - Gates: `tools/guard_repo.py` 66 files, 0 failures; `tools/hash_rom.py` OK; `git check-ignore -q` = 1
   for each new file; `make compare` → `private/build/yugioh.gba: OK`.
 
+## 2026-10-12 14:18 — Y5 tooling 2: parallel-safe harness, asm-differ, decomp-permuter (DeepSeek, branch `deepseek/permuter`)
+
+TASK [022]. New files: `scripts/asm_with_defsyms.sh`, `scripts/rom_func_obj.sh`,
+`scripts/permute_func.sh`, `scripts/diff_func.sh`, `scripts/decomp_tools.sh`, `tools/diff_func.py`,
+`tools/diff_func.sh`, `tools/permute_func.sh`. Changed: `tools/match_func.py` (per-run build dir,
+`--keep`/`--workdir`), `scripts/match_func.sh` (optional 4th argument = that dir),
+`scripts/build_matched.sh` (reads the symrefs list, below), `tools/make_decomp_job.py` (recipe),
+`docs/decomp.md` §2/§9/§10, `docs/credits.md`.
+
+- **Parallel-safe harness.** Every `match_func.py` run builds in `private/build/match/<name>.<pid>`
+  and deletes that directory when it ends, so overlapping runs cannot collide; `--keep`/`--workdir`
+  keep it instead (`tools/diff_func.py` uses both). `scripts/build_matched.sh` is the one caller
+  that still uses the shared `private/build/match/<name>`.
+  C1, 8 runs at once (task asked for 4): `bash private/tmp/c1_parallel.sh` →
+  `8 match_func.py runs launched at once, wall clock 864 ms`, then eight lines of
+  `exit=0  MATCH <name> @ 0x...: N bytes identical`, and
+  `leftover per-run build dirs (the runs delete their own): 0`. The same 8 runs also passed while
+  `make compare` was building in the same checkout.
+- **asm-differ** (commit `0dd09af`, MIT) — `tools/diff_func.sh <name>`, i.e.
+  `PY tools/diff_func.py <name>`: builds `src/funcs/<name>.c` exactly as the check does, builds the
+  ROM's own bytes for that function as a second object (`scripts/rom_func_obj.sh`, verified against
+  the ROM) and prints the two side by side. `tools/diff_func.sh sub_08004750` → `CURRENT (0)`, no
+  differences; on the perturbed copy below → `CURRENT (10)` with `i`/`|` on the two differing lines
+  (`ldrb r0, [r0, #3]` vs `ldrb r0, [r0, #0]`; `.word 0x0201fcc0` vs `.word 0x0201fcc3`), which is
+  exactly what the check says: `FAIL ... 2/12 bytes differ`.
+- **decomp-permuter** (commit `8556c81`, MIT) — `tools/permute_func.sh <name> [minutes]
+  [--base file.c] [--jobs N]`: sets up `private/permuter/<name>/` (ROM bytes as `target.o`, the C
+  as `base.c`, generated `compile.sh`), runs time-boxed with `--stop-on-zero` and copies the best
+  candidate to `private/permuter/<name>/best.c` — never into `src/`. Demo: `sub_08004750`
+  (`return gUnk_0201FCC0[3];`) perturbed into `unsigned char *p = &gUnk_0201FCC0[3]; return *p;`
+  → `[sub_08004750] base score = 10`, `found new best score! (0 vs 10)`, 119 candidates, 2.7 s wall
+  clock including the setup (first run: 170 candidates, 3 s). That `best.c` through the real check:
+  `MATCH sub_08004750 @ 0x08004750: 12 bytes identical, 12 bytes of room in the ROM`.
+  Setup: `bash scripts/decomp_tools.sh` → both clones at their pinned commits + `private/venv`
+  (pip bootstrapped into the venv from bootstrap.pypa.io because Ubuntu 24.04's `python3` has none;
+  nothing system-wide, nothing under `private/` committed).
+- **Assembly with `--defsym`** (`scripts/asm_with_defsyms.sh`): every undefined symbol named
+  `NAME_<8 hex digits>` is defined as the address in its own name, so a constant the C names by a
+  symbol and the ROM's inline constant read the same for the two tools. It also writes
+  `<name>.o.symrefs`, which `build_matched.sh` now reads instead of `nm -u` — after `--defsym`
+  those symbols are no longer undefined. Without that, `make compare` failed once with
+  `arm-none-eabi-ld: private/build/rom.o: in function 'sub_08004750': (.text+0x4758): undefined
+  reference to 'gUnk_0201FCC0'`.
+- Measured in passing: `extern signed char gUnk_0201FCC0[]` returned as `unsigned char` compiles to
+  the ROM's `ldrb` **byte-identically** (permuter base score 0, `cmp` against the ROM) — gcc 2.9
+  drops the sign-extending load when the value is only used as an unsigned char. Recorded in
+  `docs/decomp.md` §9 so a future "signed vs unsigned" near miss is not misread.
+- Gates: `tools/guard_repo.py` 82 files, 0 failures; `tools/hash_rom.py` → `ORIGINAL` and `BASEROM`
+  both `sha1=d3710031520d9cdae70d870c60b1667285fe5230 OK`; `git check-ignore -q` = 1 for all 8 new
+  files; `make compare` → `private/build/yugioh.gba: OK`.
+

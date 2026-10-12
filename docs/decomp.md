@@ -23,11 +23,21 @@ build is byte-identical only if the C is right.
 
 1. Finds `<name>` in `config/functions.csv` (main checkout): address, mode, extent (A5).
 2. Copies `src/funcs/<name>.c` from **this** checkout (a job worktree counts) into
-   `D:\Yugioh_DeComp_V2\private\build\match\<name>\`, and runs `scripts/match_func.sh` there in WSL:
+   `D:\Yugioh_DeComp_V2\private\build\match\<name>.<pid>\`, and runs `scripts/match_func.sh` there in WSL:
    `cpp -nostdinc -undef -std=gnu89 -I private/tools/agbcc/include -I private/tools/agbcc -I
    include` → `agbcc -mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm` →
    `arm-none-eabi-as -mcpu=arm7tdmi -mthumb-interwork`.
    That is pokefirered's agbcc invocation minus its charmap preprocessor.
+   The assembling step is `scripts/asm_with_defsyms.sh`: every undefined symbol whose name ends in
+   `<8 hex digits>` is defined as that absolute address, so a constant the C names
+   (`extern u8 gUnk_0201FCC0[]`) settles into the object as the ROM's own constant instead of a
+   relocation. That is what `make` does for the same file (`.set gUnk_0201FCC0, 0x0201FCC0` in
+   `scripts/build_matched.sh`), and it is what lets §9 compare assembly text without tripping over
+   toolchain bookkeeping. Calls to another function keep their relocation.
+   The build directory is per run (`<name>.<pid>`) and is deleted when the run ends, so two runs at
+   once — a local job's check beside `make compare` — cannot collide; `--keep` and `--workdir`
+   change that (tools/diff_func.py uses both). `scripts/build_matched.sh` is the one caller that
+   still uses the shared `private/build/match/<name>`.
 3. Links the object at the function's address (`scripts/link_at.sh`) and compares
    `.<size>` bytes — gcc's own `.size`, so the literal pool is included — with the ROM's bytes at
    that address. Length must not pass the next function's start.
@@ -128,5 +138,90 @@ and then the whole-ROM SHA-1 decides.
    single function without re-importing or re-analysing (seconds, not minutes).
 
 `tools/make_decomp_job.py` quotes the draft's absolute path in a job's recipe when the file exists,
-with the same warning: read it, do not copy it.
+with the same warning: read it, do not copy it. The recipe also says what a draft's `in_lr`,
+`undefined4` and `in_stack_...` are: Ghidra's own bookkeeping, to be ignored.
+
+## 9. Near misses: `tools/diff_func.sh`, `tools/permute_func.sh`
+
+Two tools for the case the check says `FAIL` and the C is *almost* right. Both need the community
+tools in `private/tools/` and the Python in `private/venv/` (§10).
+
+**`tools/diff_func.sh <name>`** (the real file is `tools/diff_func.py`; same arguments and the same
+view of the world as `tools/match_func.py`, a job worktree's `src/funcs` included) builds
+`src/funcs/<name>.c` exactly as the check does, builds the ROM's own bytes for that function as a
+second object (`scripts/rom_func_obj.sh`, which verifies them against the ROM) and prints the two
+side by side with [asm-differ](https://github.com/simonlindholm/asm-differ):
+
+```
+TARGET                                                   CURRENT (10)
+0:    ldr     r0, [pc, #4]  @ =0x0201fcc0 (8)            0:    ldr     r0, [pc, #4]  @ =0x0201fcc3 (8)
+2:    ldrb    r0, [r0, #3]                        i      2:    ldrb    r0, [r0, #0]
+4:    bx      lr                                         4:    bx      lr
+6:    .short  0x0000                                     6:    .short  0x0000
+8:    .word   0x0201fcc0                          |      8:    .word   0x0201fcc3
+```
+
+Left column: the ROM, the truth. Right column: our C. `i` marks an instruction whose operands
+differ, `|` marks a line that is missing on one side, and the number in `CURRENT (n)` is how many
+lines differ — `(0)` means the function matches and there is nothing to fix. Both objects are
+assembled through `scripts/asm_with_defsyms.sh` (§2), so a constant the C names by a symbol and the
+ROM's inline constant read the same and are not reported as differences.
+
+**`tools/permute_func.sh <name> [minutes] [--base file.c] [--jobs N]`** sets up
+`private/permuter/<name>/` (the ROM's bytes as `target.o`, the C as `base.c`, a generated
+`compile.sh` that is the harness pipeline, `run.log`) and runs
+[decomp-permuter](https://github.com/simonlindholm/decomp-permuter) for that many minutes (default
+5, `--stop-on-zero`). The best candidate it produced is copied to
+`private/permuter/<name>/best.c` — **never** into `src/`. A score is a hint, not evidence: a
+score-0 candidate still has to pass `tools/match_func.py` before anyone copies it in. Local jobs
+never run the permuter.
+
+Measured example (the demo both tools were built with, `sub_08004750`, 2026-10-12): the function is
+`return gUnk_0201FCC0[3];`, deliberately perturbed into a pointer form —
+
+```c
+extern unsigned char gUnk_0201FCC0[];
+
+unsigned char sub_08004750(void)
+{
+    unsigned char *p = &gUnk_0201FCC0[3];
+    return *p;
+}
+```
+
+That C is a near miss of exactly the kind §3 warns about: agbcc folds the `+3` into the literal
+pool (`.word 0x0201FCC3` with `ldrb r0, [r0, #0]`) where the ROM has `.word 0x0201FCC0` with
+`ldrb r0, [r0, #3]`. Permuter base score 10; `diff_func` shows those two lines.
+`tools/permute_func.sh sub_08004750 5 --base <that file>` found a score-0 candidate in **3 seconds**
+(119 candidates in the re-run and 170 in the first one — the workers race, so the count varies; the
+wall clock includes building `target.o`):
+
+```c
+extern unsigned char gUnk_0201FCC0[];
+
+unsigned char sub_08004750(void)
+{
+    int new_var;
+    unsigned char *p;
+    new_var = 3;
+    return *(&gUnk_0201FCC0[new_var]);
+}
+```
+
+and `tools/match_func.py sub_08004750` on it reports `MATCH ... 12 bytes identical`. The winner is
+ugly — a dead variable survives, because agbcc folds it away and the bytes come out right — so it
+is a *hint* for a human/agent to tidy up, then check again. The same run also showed that a signed
+element type can be invisible: `extern signed char gUnk_0201FCC0[]`, returned as `unsigned char`,
+compiles to the ROM's `ldrb` byte-for-byte (base score 0), because gcc 2.9 drops the sign-extending
+load when the value is used as an unsigned char.
+
+## 10. Setting the two community tools up
+
+`bash scripts/decomp_tools.sh` (once, inside WSL) clones both tools into `private/tools/` at pinned
+commits and installs their Python dependencies into `private/venv/`. Ubuntu 24.04's `python3` has no
+pip, and the `python3-venv` package would be a system-wide install (Matter_Scatter's approval),
+so pip is bootstrapped into the venv itself from `bootstrap.pypa.io/get-pip.py`. Nothing is
+installed system-wide, nothing under `private/` is committed; the commit hashes, sizes and licences
+are in `docs/credits.md`. Without them, `diff_func`/`permute_func` say what is missing and stop.
+
 

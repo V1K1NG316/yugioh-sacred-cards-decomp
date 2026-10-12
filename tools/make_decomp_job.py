@@ -60,12 +60,19 @@ style to copy, #4 is the only test that counts.
    - A `FAIL` line prints the first differing offset, both byte strings, and a side-by-side
      disassembly with the differing instructions marked. Read it: `rom` is the truth, `ours` is
      your C.
-   - The END of the asm tells you the return type: `pop {r0}` + `bx r0` means the function returns
-     NOTHING (`void`; r0 only carries the return address). `pop {r1}` + `bx r1` means it returns a
+   - The END of the asm tells you the return type: `pop {{r0}}` + `bx r0` means the function returns
+     NOTHING (`void`; r0 only carries the return address). `pop {{r1}}` + `bx r1` means it returns a
      value in r0. A callee whose result is unused can be declared `void`. Do not fight this rule.
    - Common causes of a near miss: operands in the wrong order (`sub` vs reversed), a variable gcc
      can remove (write the expression in one go instead of storing to a temporary), signed vs
      unsigned (`ldrsb` vs `ldrb`), or an `if` gcc turns into a conditional move.
+   - To see a near miss instruction by instruction, run `PY tools/diff_func.py <name>` (the same
+     thing as `tools/diff_func.sh <name>`): the ROM's instructions on the left, yours on the right,
+     differing lines marked. It builds exactly what the check builds, so the two never disagree.
+   - The Ghidra draft uses `in_lr`, `undefined4`, `in_stack_...` and `SUB84`/`ZEXT` calls: those
+     are Ghidra's own bookkeeping, not part of the function. Ignore them and trust the asm.
+   - Do not run the permuter (a randomized C search) yourself: that is Hermes' job with
+     `tools/permute_func.sh`, and a search score is not evidence. Your evidence is step 4.
    - If agbcc reports an error instead, the C does not compile; fix that first.
    - You may run the test as often as you like; it does not change any file.
 
