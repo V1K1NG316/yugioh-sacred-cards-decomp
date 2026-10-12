@@ -150,3 +150,38 @@
   `git check-ignore` = 1 (tracked).
 - Finding for Y2/Y3: the disassembler emits no label at or above `0x0803B61C`, so 16533984 bytes
   (98.6% of the ROM) are one unlabelled data run — recorded as open (A8), not as "no code there".
+
+## 2026-10-12 07:23 — Y5 part 1: agbcc match harness, first three functions matched (DeepSeek)
+- Branch `deepseek/y5-harness` (from `main` `3315d0d`). agbcc copied (not modified) from
+  `D:\Custom_Pokemon\private\base\pokefirered\tools\agbcc\` to `private\tools\agbcc\` — 13 MB, bin/
+  include/ lib/; recorded in `docs\credits.md`.
+- New: `tools\match_func.py` (the check: compile one C file with agbcc, link it at the function's
+  ROM address, compare the bytes), `scripts\match_func.sh` (cpp/agbcc/as pipeline),
+  `scripts\link_at.sh` (stub symbols + linker script, one place that knows how to link at an
+  address), `scripts\build_matched.sh` (the C goes into the ROM build), `include\global.h`,
+  `src\funcs\{sub_08004750,sub_08007604,sub_0800AF94}.c`, `tools\{progress,pick_decomp_targets,
+  make_decomp_job,romcode}.py`, `docs\decomp.md`. `Makefile`: the rom.o rule now runs
+  `scripts\build_matched.sh` and depends on `src/funcs/*.c` plus the three scripts.
+- Three functions matched byte for byte, so **approximation A3 is settled**: agbcc
+  (gcc 2.9-arm-000512, `-mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm`) is the
+  compiler. Updated `docs\approximations.md` (A3 now SETTLED, A9 added) and `docs\rom-map.md` §3.
+  `PY tools\match_func.py sub_08004750` →
+  `MATCH sub_08004750 @ 0x08004750: 12 bytes identical, 12 bytes of room in the ROM (next start 0x0800475C)`;
+  same for `sub_08007604` (12) and `sub_0800AF94` (10).
+- From scratch: `rm -rf private/asm private/build` + `wsl ... bash scripts/disasm.sh` → 1977
+  functions, list stable at loop 1; `wsl ... make compare` → `build_matched: 3 C function(s), 34
+  bytes compiled from C` … `private/build/yugioh.gba: OK`; `sha1sum` =
+  `d3710031520d9cdae70d870c60b1667285fe5230` (the original).
+- `PY tools\progress.py` → `3/1977 functions matched (0.15%)`, `34/211294 code bytes linked from C`.
+  The 211294 denominator comes from `tools\romcode.py` (extent minus `.incbin`), cross-checked
+  against Y3's `non-.incbin bytes: 211298`.
+- Falsification: `*(u16 *)0x02020B34 = 1` (one wrong constant) → `FAIL ... first difference at +0x2
+  (rom 00, ours 01)`, exit 1; the same in a scratch worktree copy of the C, then restored → MATCH.
+- Two traps found and written up in `docs\decomp.md` §6: (1) rom.s is `.syntax unified` while agbcc
+  writes divided syntax, so `mov r0, #0` assembled to the 4-byte `mov.w` and the ROM came out 4
+  bytes too long — the fragment is now bracketed with `.syntax divided`/`.syntax unified`; (2) `ld
+  --defsym` makes an *absolute* symbol, which ld takes for ARM code and answers with a Thumb→ARM
+  veneer (`bl 800afa0 <__sub_0800AF3C_from_thumb>`), so undefined symbols are now real `.thumb_func`
+  stubs placed at their addresses.
+- Gates: `guard_repo.py` 65 files, 0 failures; `hash_rom.py` ORIGINAL OK / BASEROM OK;
+  `git check-ignore -q` = 1 on each of the 13 new files.
