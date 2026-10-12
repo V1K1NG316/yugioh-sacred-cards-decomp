@@ -89,3 +89,22 @@ Every labelled guess (A1..An) and where it is marked.
   and is not (entries 0 and 1 point one byte apart, entry 1's target is a duel message). Until the mapping is
   found, descriptions must be harvested by scanning, not by card number. Marked in `docs/game-data.md` §Text.
   (2026-10-12, Y4)
+- **A12 — RESOLVED** (2026-10-12, Y4 part 2, DeepSeek). The index is the 900-word pointer table at
+  `0x08E94E7C`, one entry per card number (entry `k` = card `k+1`), read by the card-database loader
+  `sub_08006BE4` with a literal 4 bytes below the table (`0x08E94E78`) because the game's card ids are 1-based
+  (`sub_080073E4` does the same for the name table at `0x08D310E4` via `0x08D310E0`). Verified on cards 1-2, 30-40,
+  35, 58, 82, 866 and 887 (names line up with their descriptions), and card 2's description effect line matches
+  `word[0x08DFC054 + 4*2]`. `0x08DFC054` is *not* a card table at all (one reader, `sub_08024F64`, effect
+  messages). The old text above is kept as the record of what was wrong. Evidence in `docs/game-data.md` §Text.
+- **A13** — the text-decoding rules of `tools/decode_text.py` are read off the *shape* of the data, not from the
+  renderer: `^` and `#0` are rendered as a line break, `%` as a comma, `$<digit>` starts a language field, and a
+  record ends at the first `0x00`. Facts: every Latin description field has the shape `^2<line1>^<line2>^`
+  (4505 / 4506 have the leading `^2`, so the `2` is a per-field constant, not a line number) and duel messages use
+  `#0`/`#1`… where descriptions use `^`. What `^<digit>` selects and whether `^` really is a line break for the
+  renderer is unverified. Marked in `tools/test_decode_text.py`, `tools/test_card_descriptions.py`,
+  `config/text_glyphs.csv`. (2026-10-12, Y4 part 2)
+- **A14** — the table at `0x08DFC054` (901 words, entry 0 an empty string) holds duel-time effect-message
+  templates and is indexed by something other than the card number: the callers of `sub_08024F64` pass constants
+  (0x54, 0x59, 0x21C), Blue-Eyes' slot 1 reads "…will be summoned", and slots 35/58/865/887 are empty, yet
+  `word[0x08DFC054 + 4*2]` is exactly Mystical Elf's effect line. Reading it as an *effect id* is a guess.
+  Marked in `docs/game-data.md` §Text. (2026-10-12, Y4 part 2)

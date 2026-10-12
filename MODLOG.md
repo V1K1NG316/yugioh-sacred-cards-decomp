@@ -290,3 +290,35 @@ Evidence: `private/tmp/refroot/` (a scratch root holding reference implementatio
   BASEROM both `OK` (exit 0); `make compare` (WSL) → `private/build/yugioh.gba: OK`; `git check-ignore -q` = 1
   for each of the three new check scripts; nothing under `private/` staged.
 
+
+## 2026-10-12 14:50 — Y4 part 2: the card-description index is found; text decoder + description extractor jobs (DeepSeek, branch `deepseek/y4-text`)
+
+TASK `[028]`, budget ~$1.00. Files: new `config/text_glyphs.csv`, `tools/test_decode_text.py`,
+`tools/test_card_descriptions.py`; recipes `private/jobs/drafts/decode_text.md` and `card_descriptions.md`;
+references in `private/tmp/refs_good/`; `docs/game-data.md` §Text rewritten, `docs/approximations.md` (A12
+RESOLVED, new A13, A14), `docs/jobs.md` batch 4.
+
+- **A12 solved.** Cards are 1..900; the description index is the 900-word table at `0x08E94E7C`, read by the
+  card-database loader `sub_08006BE4` at `0x08006CA0` (`ldr r0, =0x08E94E78` = table - 4, `adds r0, r6, r0`
+  with `r6 = 4*cardId`) because the game's card ids are 1-based - the same trick as the name reader
+  `sub_080073E4` (`=0x08D310E0` for the table at `0x08D310E4`). The description pointer lands at struct
+  `0x02020B00 + 8`; when the card's cost exceeds the Duelist Level the game stores `0x08D30F40` instead
+  ("Your Duelist Level is below the Cost...").
+- `0x08DFC054` is not a card table: searching the whole 16 MiB for the word gives exactly one hit
+  (`PY` scan -> `0x8dfc054 word occurrences in whole ROM: ['0x8024f90'] count 1`), the literal pool of the
+  effect-message renderer `sub_08024F64`. The old "2 load sites" note was wrong. `0x08E94E78` likewise has
+  exactly one hit (`0x8006cb0`).
+- Description records: `81 40` + `$0`..`$5` + `00 00`, cards 1/2/3 padded to 126/132/112 bytes per field, all in
+  `0x08DFCE68`..`0x08E94E75`; the 900 pointers are strictly increasing, the table ends `0x08E95C8C` before a run
+  of `0xFFFFFFFF`.
+- Five famous cards decoded through the rule (C1) and the whole 30..40 name block lines up with its
+  descriptions; card 2's effect line matches `word[0x08DFC054 + 4*2]` = "...on the own field will be powered up".
+- Glyph table re-swept over the Latin fields of all 900 name records: 28 codes, `0x74` `0x75` = OE/oe are new
+  (`Gros OEil`, `Boeuf de combat`, `Changement de coeur`), `0x64` still unknown.
+- Two new checks, each validated both ways with `bash private/tmp/break_checks2.sh`: reference -> exit 0,
+  three broken variants per tool -> exit 1, tool absent -> exit 1, restored -> exit 0.
+  `PY tools/test_decode_text.py` -> `records: 920 / fields: 5520 / bytes: 207046 / ALL CHECKS PASSED`;
+  `PY tools/test_card_descriptions.py` -> `cards: 900 / bytes: 152373 / ALL CHECKS PASSED`.
+- Gates: `PY tools/guard_repo.py` -> `guard: 89 files checked, 0 failures` (exit 0); `PY tools/hash_rom.py` ->
+  ORIGINAL and BASEROM `OK` (exit 0); `make compare` (WSL) -> `private/build/yugioh.gba: OK` (exit 0);
+  `git check-ignore -q` = 1 for each new file; nothing under `private/` staged.

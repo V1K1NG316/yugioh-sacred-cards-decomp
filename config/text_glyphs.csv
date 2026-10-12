@@ -1,0 +1,37 @@
+# Text glyphs for Yu-Gi-Oh! The Sacred Cards (GBA, AY7E).
+# A text record holds the two-byte escape 0x87 <code> for one accented letter; this table maps
+# <code> to the letter it renders. Verified by reading the byte pairs inside known words of the
+# 900 card names (evidence per row is in docs/game-data.md); nothing here is guessed from a formula.
+# Columns: code,char,status
+#   verified    = read from two or more different words in the ROM
+#   single-read = read from exactly one word
+#   unknown     = code seen in the ROM, letter not identified (char left empty)
+# Lines starting with # and blank lines are ignored. Bytes are UTF-8.
+0x43,Á,verified
+0x48,É,verified
+0x4C,Í,single-read
+0x54,Ö,single-read
+0x56,Ú,single-read
+0x58,Ü,verified
+0x59,ß,verified
+0x5A,à,verified
+0x5B,á,verified
+0x5C,â,verified
+0x5F,ä,verified
+0x60,è,verified
+0x61,é,verified
+0x62,ê,verified
+0x64,,unknown
+0x65,í,verified
+0x66,î,verified
+0x67,ï,verified
+0x68,ñ,verified
+0x6A,ó,verified
+0x6B,ô,verified
+0x6D,ö,verified
+0x6F,ú,verified
+0x70,û,verified
+0x71,ü,verified
+0x73,ç,verified
+0x74,Œ,verified
+0x75,œ,verified
