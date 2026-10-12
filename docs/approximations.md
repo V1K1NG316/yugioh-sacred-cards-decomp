@@ -65,3 +65,27 @@ Every labelled guess (A1..An) and where it is marked.
   626 `.4byte` pointer words kept as symbols would not show a code block that is only reached by a
   computed jump. Marked in `tools/post_disasm.py`, `tools/split_disasm.py`, `docs/rom-map.md` §5.
   (2026-10-12, Y3)
+- **A10** — what counts as an LZ77 blob in `tools/find_lz77.py` / `tools/test_lz77.py`: any file offset whose
+  byte is `0x10` and whose following 24-bit little-endian size (1..`0x40000`) is produced *exactly* by the BIOS
+  LZ77 stream at +4. Two deliberate choices, both visible in the output: (1) overlapping candidates are resolved
+  left to right (a candidate starting inside an accepted blob's compressed range is dropped), and (2) no pointer
+  word is required, so 112 of the 1084 blobs are unreferenced — 102 of them declare 72 bytes or less and are
+  almost certainly coincidences inside data (a valid-looking header whose stream accidentally completes), the
+  rest are 576-byte blobs inside the card-picture region. A blob also may not overshoot its declared size with
+  its last copy, which is a choice, not a BIOS rule: the BIOS would keep writing. Marked in
+  `tools/test_lz77.py`, `docs/game-data.md` §Compression. (2026-10-12, Y4)
+- **A11** — what counts as a text-pointer table in `tools/find_text_tables.py` / `tools/test_find_text_tables.py`:
+  a run of 4-aligned words whose value is a ROM address starting with `$0` (0x24 0x30), where consecutive hits
+  are at most 8 bytes apart and a run needs at least 4 hits. Evidence for the rule: run over the whole ROM it
+  returns 15 runs and reproduces every table found by hand, entry counts included (`0x08D310E4` ×900,
+  `0x08D30310` ×140, `0x08D36130` ×124, `0x08D4BC3C` ×24, `0x08D419E0` ×12) — with the strict "exactly 4 bytes
+  apart" variant, the duel-message table came back as two runs (23 + 47) instead of 124, which is why the 8-byte
+  gap is in the rule. It cannot see a table whose records start differently, and it will split a table that has
+  two or more consecutive non-`$0` entries. Marked in `tools/test_find_text_tables.py`, `docs/game-data.md`
+  §Text. (2026-10-12, Y4)
+- **A12** — the card-description index is *not* found, only the text: the records live in
+  `0x08DE0000`–`0x08E40000` (a boundary read off the region where `$0…$5` records with `^` line breaks sit, not
+  a verified limit) and the 901-word sorted table at `0x08DFC054` was assumed to be the card→description table
+  and is not (entries 0 and 1 point one byte apart, entry 1's target is a duel message). Until the mapping is
+  found, descriptions must be harvested by scanning, not by card number. Marked in `docs/game-data.md` §Text.
+  (2026-10-12, Y4)
