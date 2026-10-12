@@ -409,3 +409,4 @@ composed-image rule. Break tests `bash private/tmp/break_card_images2.sh`:
 === broken: wrong palette (must fail)            FAIL card 1: PLTE is not the 256 colours of 0x089C54B0 exit=1
 === restored good reference (must pass again)    ALL CHECKS PASSED                                   exit=0
 ```
+- 2026-10-12 15:58: Matter_Scatter lifted the overnight $10 cap (awake and watching); the $30 project stop still applies.
