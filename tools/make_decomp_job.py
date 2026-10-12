@@ -81,6 +81,11 @@ style to copy, #4 is the only test that counts.
 5. Do not touch anything else. Not `config/`, not `tools/`, not `include/`, not `docs/`, and above
    all not `private/` (it holds the ROM and the generated disassembly; the harness reads them).
    Do not create extra files, not even a note -- put any remark in the job's report.
+
+6. Commit EXACTLY this one file, with exactly these two commands (never `git add .`, `-A` or `-f`;
+   JOB.json and RESULT.md must stay uncommitted):
+   `git add src/funcs/{name}.c`
+   `git commit -m "decompile {name}"`
 """
 
 
