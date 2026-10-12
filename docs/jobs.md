@@ -47,3 +47,18 @@ text Y4 needs, and the raw material for a glyph decoder.
 `private/extracted/text_table_map.tsv` (15 tables). Check: `PY tools/test_find_text_tables.py`. Recipe:
 `private/jobs/drafts/text_table_map.md`. Purpose: the systematic version of the hand survey; it reproduces
 every table found by hand, entry counts included.
+
+## 2026-10-12 — batch 4 (Y4 part 2: text decoder + card descriptions, by DeepSeek on `deepseek/y4-text`)
+Not queued yet (same rule: `tools/make_job.py` refuses a check whose `.py` is not on `main`). Claude merges, then
+the two lines in REPORT `[029]` can be run. Both jobs write one tool; both checks recompute the whole expected
+output from the ROM and were verified to exit 0 against a reference implementation and non-zero against three
+broken variants each plus a missing tool (`private/tmp/break_checks2.sh`).
+- `tools/decode_text.py` — decode any text record address, one line per language field (`$0`..`$5`), accents via
+`config/text_glyphs.csv`, `^`/`#0` line breaks and `%` commas. Check: `PY tools/test_decode_text.py` (920
+addresses = all 900 card names + 20 card descriptions, 5520 lines, 207 046 bytes compared exactly against the
+check's own decoder). Recipe: `private/jobs/drafts/decode_text.md`. Purpose: Y4 text, reusable by every later
+text tool, without spending DeepSeek tokens on five languages of byte rules.
+- `tools/extract_card_descriptions.py` — card number (1..900) → name → description, English, both tables read
+from the ROM (`0x08D310E4`, `0x08E94E7C`) → `private/extracted/card_descriptions.tsv` (900 lines, 152 373
+bytes). Check: `PY tools/test_card_descriptions.py`. Recipe: `private/jobs/drafts/card_descriptions.md`. Purpose:
+the A12 result as data, one line per card, ready for the in-game spot checks.

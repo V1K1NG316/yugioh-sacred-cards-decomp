@@ -81,20 +81,71 @@ Whole-ROM pointer-table map (`tools/find_text_tables.py`, job `text_table_map`, 
 | `0x08DFC508` / `0x08DFCA80` / `0x08DFCC88` / `0x08DFCDEC` / `0x08DFCE3C` | 50/49/10/8/11 | effect/duel message texts (`#2#0was activated.#1…`) |
 Extractor for the middle four: `tools/extract_text_tables.py` (job `text_tables`), check `tools/test_text_tables.py`.
 
-**Card descriptions are uncompressed and found** (region ≈ `0x08DE0000`–`0x08E40000`), e.g. at `0x08DFE3D0`:
-```
-$0^2A ghostly   spirit of a   wild animal   that roams in wastelands. ^This card   could become
-troublesome   if encounteredin number.^$1^2A ghostly   spirit of a   wild animal   that roams …
-```
-Note the space padding (the text is pre-wrapped for a fixed-width font) and that every language holds the same
-untranslated text. **Not yet indexed:** the 901-word table at `0x08DFC054` is sorted, unique and points into
-`0x08DE6578`..`0x08DFBF2E`, but it is *not* card→description (entry 0 and 1 point one byte apart, and entry 1
-targets a duel message). How the game finds a card's description is the open item (A12).
+**Card descriptions are indexed by card number — found** (2026-10-12, Y4 part 2). Cards are numbered 1..900 and
+the description index is the **900-word pointer table at `0x08E94E7C`** (entry `k` = card `k+1`; records run in
+card order, the table ends at `0x08E95C8C` followed by `0xFFFFFFFF`). The descriptions are uncompressed `$0`…`$5`
+records in `0x08DFCE68`..`0x08E94E75` — the first record starts exactly where the 901-word table at `0x08DFC054`
+ends. `0x08DE6578`..`0x08DFBF2E`, which *that* table points at, holds **duel-time effect messages**, not
+descriptions.
 
-## `0x87` accented letters (verified, DeepSeek 2026-10-12)
-Two bytes: `0x87` then a code byte, rendering one accented letter (`0x87` itself never appears otherwise). The
-code byte is a look-alike letter, so the table is a lookup, not a formula. Verified by reading the byte pairs in
-known words of the 900 card names (each code below is quoted with the word it was read from):
+The game's reader is the card-database loader `sub_08006BE4` (it fills the card struct at `0x02020B00`); the
+description text pointer is stored at struct `+8`:
+```asm
+0x08006C88  bl sub_08014110        @ r0 = Duelist Level
+0x08006C8C  ldr r1, [r5, #0xc]     @ r1 = card cost, word at 0x08088DF0 + 4*cardId
+0x08006C90  cmp r1, r0
+0x08006C92  bls 0x08006CA0         @ cost <= Duelist Level -> the real description
+0x08006C94  ldr r0, =0x08D30F40    @ else: "Your Duelist Level is below the Cost. This can't be put in the Deck."
+...
+0x08006CA0  ldr r0, =0x08E94E78    @ the description table, 4 bytes low
+0x08006CA4  adds r0, r6, r0        @ r6 = 4 * cardId
+0x08006CA6  ldr r0, [r0]
+0x08006CA8  str r0, [r5, #8]
+```
+**Card ids are 1-based**: the literal sits 4 bytes *below* the table (`0x08E94E78` = `0x08E94E7C` - 4), exactly the
+trick the name reader `sub_080073E4` uses for the name table (`0x08D310E0` for `0x08D310E4`). The word at
+`0x08E94E78` is `0x08D2A6E4`, a per-card byte array — not a text record — so id 0 means "no card" and is never
+looked up. Whole-ROM read counts: exactly **one** word equals `0x08DFC054` (the literal pool at `0x08024F90`, the
+only reader being `sub_08024F64`, an effect-message renderer) and exactly one equals `0x08E94E78` (pool at
+`0x08006CB0`). The earlier "loaded at 2 sites" was wrong.
+
+Record layout: `81 40` + `$0`…`$5` + `00 00`. Latin fields are padded to the record's own fixed width (126 / 132 /
+112 bytes for cards 1 / 2 / 3), the Japanese `$5` field is raw Shift-JIS (~2 bytes per character), and every Latin
+field has the shape `^2<line 1>^<line 2>^` — in 4505 of the 4506 fields the leading `^2` is present, and the `2`
+is a constant, not a line number (A13). Card 1 (`0x08DFCE68`), raw decoded:
+```
+$0^2A legendary dragon that   takes pride inits enormous  power.      ^Its powers  of destructionfar exceed    comprehension.^
+```
+
+**Checked against the game's own data** (C1, Y4 part 2) — card number → decoded English description:
+| # | name | description (padding collapsed for reading) |
+|---|---|---|
+| 1 | Blue-Eyes White Dragon | A legendary dragon that takes pride in its enormous power. Its powers of destruction far exceed comprehension. |
+| 2 | Mystical Elf | An elf with blue skin, yellow hair, and light of element. It can powerup Blue-Eyes White Dragons on the own field. |
+| 35 | Dark Magician | A sinister spell caster that possesses both power and defense. It is among the best of all magicians. |
+| 58 | Kuriboh | A small and furry fiend that is not much of a threat. However, it can be a pain if they appear in numbers in darkness. |
+| 82 | Red-Eyes B. Dragon | A sinister black dragon with eyes that shine a deep scarlet. It furiously … |
+| 866 | Blue-Eyes Ultimate Dragon | The ultimate of all dragons that has three awe-inspiring heads … |
+The tools keep the ROM's padding spaces; only this table collapses them. Two further confirmations that the index
+is right: cards 30..40 line up name-for-name with their description (Zombie Warrior → "A skeletal warrior … with a
+sword and shield", Dark Magician → "A sinister spell caster …", Gaia the Dragon Champion → "A powerful knight that
+sits astride its dragon steer"), and card 2's description effect line matches `word[0x08DFC054 + 4*2]` = "…on the
+own field will be powered up". Five names exist twice in the 900 slots (Blue-Eyes White Dragon, Dark Magician,
+Red-Eyes B. Dragon, Blue-Eyes Ultimate Dragon, Red-Eyes Black Metal Dragon — the promo reprints); each slot has its
+own name record and its own description text, so the mapping is per *slot*, not per name.
+
+Decoder / extractor: `tools/decode_text.py` (job `decode_text`) decodes any record address, six languages;
+`tools/extract_card_descriptions.py` (job `card_descriptions`) writes card number → name → description to
+`private/extracted/card_descriptions.tsv` (900 lines, 152 373 bytes). Glyph table `config/text_glyphs.csv`;
+checks `tools/test_decode_text.py`, `tools/test_card_descriptions.py`.
+
+## `0x87` accented letters (verified, DeepSeek 2026-10-12; re-swept 2026-10-12 Y4 part 2)
+Two bytes: `0x87` then a code byte, rendering one accented letter. The code byte is a look-alike letter, so the
+table is a lookup, not a formula. Verified by reading the byte pairs in known words of the 900 card names (each
+code below is quoted with the word it was read from). The sweep over the Latin fields (`$0`…`$4`, i.e. everything
+before the `$5` marker) of all 900 name records finds exactly **28 codes**; the same byte values inside `$5` are
+not escapes at all, they are Shift-JIS lead/second bytes. The machine-readable copy of this table is
+`config/text_glyphs.csv` (27 codes with a letter, `0x64` without), consumed by `tools/decode_text.py`.
 | code | letter | evidence |
 |---|---|---|
 | `0x54` `0x56` `0x58` `0x59` | Ö Ú Ü ß | `Ödland`, `Último día`, `Übersinnlicher`, `Großer Weißer` |
@@ -103,12 +154,13 @@ known words of the 900 card names (each code below is quoted with the word it wa
 | `0x65` `0x66` `0x67` `0x68` | í î ï ñ | `místico`, `Chaîne`, `humanoïde`, `montaña` |
 | `0x6A` `0x6B` `0x6D` | ó ô ö | `Dragón`, `fantômes`, `Zweiköpfiger` |
 | `0x6F` `0x70` `0x71` `0x73` | ú û ü ç | `Músico`, `envoûtante`, `Geflügelter`, `Garçon` |
-`0x61` is also used for the capital `É` (`Garçon-Étoile`). Very likely but only read once: `0x43` Á (`Árbol`,
-`Águila`), `0x48` É (`Épée de dragon`), `0x4C` Í (`Ídolo mil ojos`). Unknown: `0x64` (`Ultimo D?d della
+| `0x74` `0x75` | Œ œ | `Gros Œil`, `Œil de feu`; `Bœuf de combat`, `Changement de cœur` |
+`0x61` is also used for the capital `É` (`Garçon-Étoile`). The capitals, with the count the sweep gives:
+`0x43` Á (2 words: `Águila de ala`, `Árbol antiguo`), `0x48` É (23, e.g. `Baron de l'Épée infernale`,
+`Masque de l'Éclat et de la Nuit`), `0x4C` Í (**1**: `Ídolo mil ojos`). Unknown: `0x64` (`Ultimo D?d della
 Strega`, Italian). Three codes appear for a second letter that is certainly a typo in the game's own text:
-`0x56` for í in `día`, `0x6B` for é in `météo` (`mêtaêo`). The codes `0x82`/`0x83`/`0x89`/`0x90` only ever occur
-inside the Shift-JIS `$5` fields, so they are not escapes at all — they are second bytes of Shift-JIS
-characters that follow a `0x87` kanji byte.
+`0x56` for í in `día`, `0x6B` for é in `météo` (`mêtaêo`). The codes `0x82`/`0x83`/`0x89`/`0x90` never occur
+in the Latin fields: everything inside a `$5` field is raw Shift-JIS, so those bytes are not escapes at all.
 
 ## Other leads (unverified)
 - THUMB→ARM thunks (`add rX, pc, #imm; bx rX`) in the code region: `0x08036C70`→`0x08036C74`,
