@@ -19,7 +19,10 @@ brief) and `LOCAL_WORKER.md` (local worker's brief) first.
 ## Running things where Matter_Scatter can see them (Claude app Terminal panel)
 Use `mcp__terminal__run_in_terminal` (one literal command per tab; it opens a new tab):
 1. **Live view** (keep open): `& 'C:\Users\USER\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\python.exe' -I D:\Yugioh_DeComp_V2\ops\watch.py`
-2. **Local worker** (keep open, 24/7): `powershell -ExecutionPolicy Bypass -File D:\Yugioh_DeComp_V2\ops\local-worker.ps1`
+2. **Local worker** (keep open, 24/7), run from Claude's `main` worktree, because DeepSeek switches the main checkout
+   to its own branch: `powershell -ExecutionPolicy Bypass -File D:\Yugioh_DeComp_V2\private\worktrees\claude-main\ops\local-worker.ps1`
+   Create it once with `git worktree add private/worktrees/claude-main main`. Claude edits and commits `main` there
+   while a DeepSeek turn is running (never in the main checkout); restart the worker after changing `ops\`.
 3. **DeepSeek turn NNN** (one tab per turn; close the previous one with `stop_terminal_tab close:true`):
    `powershell -ExecutionPolicy Bypass -File D:\Yugioh_DeComp_V2\ops\deepseek-turn.ps1 -Entry NNN` (add `-Reasoning low`).
    Wait for it with the Monitor tool on `private\logs\deepseek-NNN.log` until it contains `=== done:` (or `BUDGET STOP`).
