@@ -84,9 +84,12 @@ Evidence collected this turn (counts are from the part-1 census of 158 functions
 
 **Finding (evidence: 1-3):** the ROM is a mixed-mode build — ARM startup stub identical to the GBA
 dev-kit crt0/intr, everything else THUMB C with `pop`/`bx` returns and direct BIOS calls.
-**Guess A3 (docs/approximations.md):** the C was built by an old GNU/agbcc-class THUMB compiler
-rather than by ARM's own `armcc` (whose returns use `pop {…, pc}`). Not proven; the decisive test is
-to compile one ROM function with `agbcc` and compare bytes (`make compare` territory, milestone Y5).
+**A3 settled (2026-10-12, milestone Y5):** agbcc does reproduce ROM functions byte for byte. With
+gcc 2.9-arm-000512 and pokefirered's flags (`-mthumb-interwork -Wimplicit -Wparentheses -Werror -O2
+-fhex-asm`), three ROM functions match exactly — literal pool placement and the
+`push {lr}` / `pop {r0}` / `bx r0` return included — and `make compare` stays byte-identical with
+their C linked into the build. See `docs/decomp.md` §5 and approximation A3 in
+`docs/approximations.md`.
 
 ## 4. Function census (verified: fixpoint of the Y3 disassembly)
 

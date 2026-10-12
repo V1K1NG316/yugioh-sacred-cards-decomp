@@ -12,11 +12,20 @@ Every labelled guess (A1..An) and where it is marked.
   census; 26 in the part-2 census, of which 3 are in `config/functions.csv` anyway because a
   pointer *table* word also points at them (the A6 sweep sees tables, not literal pools). Marked in
   `tools/find_functions.py` and `docs/rom-map.md` §4. (2026-10-12)
-- **A3** — the compiler that built the THUMB C code is guessed to be an old GNU/agbcc-class compiler
-  (evidence: `pop {…}` + `bx rN` returns in 85 of 155 THUMB functions, only one `pop {…, pc}`; ARM
-  startup stub; direct BIOS `svc` calls instead of a C library). Not proven — ARM's own `armcc` is
-  not excluded. Decisive test: compile one function with `agbcc` and byte-compare (milestone Y5).
-  Marked in `docs/rom-map.md` §3. (2026-10-12)
+- **A3 — SETTLED (2026-10-12, milestone Y5):** the guess was an old GNU/agbcc-class THUMB compiler
+  rather than ARM's own `armcc` (evidence: `pop {…}` + `bx rN` returns in 85 of 155 THUMB
+  functions, only one `pop {…, pc}`; ARM startup stub; direct BIOS `svc` calls instead of a C
+  library). The decisive test the guess named has now been run: **agbcc** (gcc 2.9-arm-000512,
+  `-mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm`) reproduces ROM functions
+  byte for byte — `sub_08004750`, `sub_08007604` and `sub_0800AF94` match exactly, literal pool and
+  return shape included, and `make compare` stays byte-identical with their C linked
+  (`tools/match_func.py`; `docs/decomp.md` §5). Marked in `docs/rom-map.md` §3. (2026-10-12, Y5)
+- **A9** — what "a function is matched" means in Y5: the ROM's bytes for the function's whole A5
+  extent equal the compiled C's bytes over gcc's `.size` (code + literal pool), followed by `.space`
+  zeros for the remaining bytes of the extent. `scripts/build_matched.sh` compares that whole extent
+  with the ROM per function before the ROM is rebuilt, so a non-zero tail fails loudly rather than
+  being absorbed; the assumption being checked is that those tail bytes are padding and not part of
+  the function. Marked in `scripts/build_matched.sh`, `docs/decomp.md` §7. (2026-10-12, Y5)
 - **A4** — the decode-validity rule used to reject a function-table candidate: the first 8 THUMB
   instructions at the target must decode as **defined ARMv4T THUMB**. Rejected by the rule
   (`thumb_ok` in `tools/find_functions.py`): a `BL`/`BLX` low half with no matching high half, the

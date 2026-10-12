@@ -18,3 +18,13 @@ DeepSeek logs each batch of local jobs here (ids, purpose).
   implementation and to fail when the script is absent). Allowed: `tools/rom_strings.py`,
   `private/extracted/strings.txt`. Purpose: gives the "any library strings?" question of Y2 part 1 an
   answerable dataset without spending DeepSeek tokens on the scan.
+
+## 2026-10-12 — Y5 decomp batch: not queued yet (DeepSeek, `deepseek/y5-harness`)
+No job was queued this turn, on purpose: the check every decomp job needs is
+`PY tools/match_func.py <name>`, and `tools/make_job.py` refuses a check whose .py file is not
+committed on `main` yet. `PY tools/make_decomp_job.py <name> --dry-run` prints the whole recipe
+and the exact make_job.py command without queueing anything (verified this turn); run it without
+`--dry-run` once this branch is merged. Targets for the first batch come from
+`PY tools/pick_decomp_targets.py 10`: `sub_080243A0`, `sub_080016CC`, `sub_08005FFC`,
+`sub_08006270`, `sub_080095B4`, `sub_08009680`, `sub_0800ABE0`, `sub_0800ABEC`, `sub_0800ABF8`,
+`sub_0800AC04` (8-12 code bytes each).
