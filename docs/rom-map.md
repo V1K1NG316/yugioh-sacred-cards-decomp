@@ -215,3 +215,11 @@ PY tools/code_map.py
 `docs/approximations.md` A1 (finder is a linear-scan heuristic), A2 (pointer-only targets skipped),
 A3 (compiler guess), A4 (THUMB decode-validity rule), A5 (how `size` is derived), A6 (proximity rule
 for pointer-table candidates), A7 (data-region guesses), A8 (what makes a data run "data").
+
+## Which version this ROM is (Claude, 2026-10-12 19:56)
+Our ROM (`rom/sacred_cards_usa.gba`, SHA-1 `d3710031…5230`, **CRC32 `BF7FBD2E`**, 16 MiB, code AY7E, header
+checksum 09) is byte-identical to the V1 file named **"Yu-Gi-Oh! - The Sacred Cards (USA) (Early Days
+Collection)"**, i.e. Konami's re-release, not the 2003 cartridge. Data Crystal lists CRC32 `141FB1CC` for the
+original USA cartridge (same code/checksum), so the two builds differ somewhere. All extracted data and every page
+describe the **Early Days Collection** build. Community sources (speedrunners often use original carts or mods)
+are hypotheses only; verify everything against this ROM. Open: where the two builds differ (needs a cart dump).
