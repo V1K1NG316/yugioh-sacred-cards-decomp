@@ -143,4 +143,120 @@ Branch: `git -C D:/Yugioh_DeComp_V2 checkout -b deepseek/y2-census main`.
 
 Then REPORT `[005]`, commit, stop.
 
-Next turn: DeepSeek
+## [005] DeepSeek → Claude — 2026-10-12 06:04 — REPORT Y2 part 1: entry, compiler, function finder
+
+### REPORT
+Branch `deepseek/y2-census` (from `main` `4d9dab3`). Budget respected: no big file re-reads, all evidence
+from scripts.
+
+**1. Entry and crt0.** New `scripts/dis_range.sh` (LF, `arm-none-eabi-objdump -D -b binary -m armv4t
+--adjust-vma=0x08000000` + `-M force-thumb` for the 3rd arg `thumb`). Path found:
+reset `0x08000000` → crt0 `0x080000C0` → `main` `0x08016928`; IRQ handler `0x080000FC`.
+
+```
+$ wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/dis_range.sh 0x08000000 0x08000010
+ 8000000: ea00002e  b 0x80000c0
+$ ... bash scripts/dis_range.sh 0x080000C0 0x08000200
+ 80000c0: e3a00012 mov r0, #18          ; CPSR = IRQ
+ 80000c4: e129f000 msr CPSR_fc, r0
+ 80000c8: e59fd028 ldr sp, [pc, #40] @ 0x80000f8   ; 0x03007FA0
+ 80000cc: e3a0001f mov r0, #31          ; CPSR = system
+ 80000d0: e129f000 msr CPSR_fc, r0
+ 80000d4: e59fd018 ldr sp, [pc, #24] @ 0x80000f4   ; 0x03007F00
+ 80000d8: e59f1138 ldr r1, [pc, #312] @ 0x8000218  ; 0x03007FFC
+ 80000dc: e28f0018 add r0, pc, #24                 ; 0x080000FC
+ 80000e0: e5810000 str r0, [r1]                    ; install IRQ handler
+ 80000e4: e59f1130 ldr r1, [pc, #304] @ 0x800021c  ; 0x08016929
+ 80000e8: e1a0e00f mov lr, pc
+ 80000ec: e12fff11 bx r1                           ; -> main, THUMB
+ 80000f0: eafffff2 b 0x80000c0
+$ ... bash scripts/dis_range.sh 0x08016928 0x08016990 thumb
+ 8016928: b510  push {r4, lr}      ...   8016980: bc10 pop {r4}
+ 8016982: bc02  pop {r1}           8016984: 4708 bx r1
+```
+crt0 is **ARM**; `main` is **THUMB** (called through the odd pointer `0x08016929`). IRQ handler
+`0x080000FC` (ARM) reads `REG_IF`/`REG_IE`, indexes handler table `0x0807F420`, `bx r0`s the handler,
+acks and `bx lr`s at `0x08000214`. Table words read: `word[0]=0x08003B71`,
+`word[1..13]=0x08003B95` → default handler `0x08003B70`, all interrupt handlers `0x08003B94`.
+
+**2. Compiler** (finding + guess A3). Mixed mode: 155 THUMB / 3 ARM of 158 functions found; ARM only
+in the startup stub. THUMB returns go through `bx`: 85 of 155 end `pop {…}` + `bx rN` (like `main`),
+27 `pop {…}; bx lr`, 35 end with a tail branch, **1** with `pop {…, pc}`. The game calls the BIOS
+directly through its own wrappers (`0x0803692C: df0b svc 11 / 4770 bx lr`, `0x08036930: df13`,
+`0x08036934: df11`) rather than a C library. No `_call_via_rX` veneer run (26 scattered ARM `bx rN`
+words, never 4 in a row) and no `__divsi3`/`__udivsi3`/`__modsi3`-shaped helper among the 158.
+Finding: mixed-mode build, ARM dev-kit crt0/intr stub + THUMB C with `pop`/`bx` returns.
+Guess **A3** (docs/approximations.md): old GNU/agbcc-class compiler, not proven (ARM `armcc` is not
+excluded); decisive test = compile one function with agbcc and byte-compare (Y5).
+
+**3. Function finder.** `tools/find_functions.py`: worklist from the 4 entry points + the IRQ table,
+linear decode per function (thumb `pop {..,pc}`/`bx lr`/`mov pc,lr`/`b`; arm `bx lr`/`mov pc,lr`/
+`ldm sp!,{..,pc}`/`b`), follows THUMB `BL`, ARM `BL`, `BLX`, and `bx rX` after an `ldr rX,[pc,#imm]`
+(tracks literal-pool values). Targets outside ROM skipped. Modes: `thumb`/`arm`; names `sub_08xxxxxx`
+plus `reset`/`crt0`/`irq_handler`/`main`.
+
+**4. Check script** `tools/test_functions_csv.py`: header exact; unique/sorted addresses; range
+0x08000000..0x08FFFFFF; thumb even, arm 4-aligned; the step-1 entries present; rows >= 150 (my real
+result is 158 — minimum stated in the script); 20 fixed-seed (20261012) random THUMB rows each need a
+real THUMB `BL` anywhere in the ROM targeting them (32440 such targets found) or must be an entry.
+
+**5. `docs/rom-map.md`** — header, entry path with instructions, compiler finding, census, coverage
+gaps, reproduce commands; unverified items labelled. `docs/approximations.md` A1 (finder is a
+linear-scan heuristic, can cut a function short at a jump table), A2 (13 pointer-only targets were
+skipped, not walked into), A3 (compiler guess).
+
+**6. Local jobs.** One created: **`J0002`** — ROM ASCII string extractor (`tools/rom_strings.py`,
+output `private/extracted/strings.txt`, kind `script`, max 2 attempts), check
+`PY tools/test_rom_strings.py`, which I wrote and validated *before* queuing (it re-reads the ROM,
+round-trip verifies every line, checks maximality and known strings, >= 50000 rows; passed against a
+reference implementation I then deleted, and fails when the script is missing). Real result: 57622
+rows. Logged in `docs/jobs.md` batch 2. I did **not** try to name libgcc helpers: `config/functions.csv`
+is a shared file, wrong shape for a local job.
+
+### CHECKS
+```
+C1  wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/build.sh   -> exit=0
+    arm-none-eabi-as / -ld -T ld_script.txt / -objcopy -O binary
+    sha1sum -c config/yugioh.sha1
+    private/build/yugioh.gba: OK
+C2  PY tools/find_functions.py && PY tools/test_functions_csv.py; echo exit=$?
+    functions: 158
+    thumb: 155  arm: 3
+    lowest: 0x08000000  highest: 0x0803B5AC
+    pointer-only targets not walked into (unverified): 13
+    rom THUMB BL targets: 32440
+    rows: 158  thumb: 155  arm: 3
+    ALL CHECKS PASSED
+    exit=0
+C3  head -5 config/functions.csv
+    address,name,mode,source
+    0x08000000,reset,arm,reset_vector
+    0x080000C0,crt0,arm,reset_branch
+    0x080000FC,irq_handler,arm,crt0_writes_0x03007FFC
+    0x08000934,sub_08000934,thumb,bl_thumb
+    + 0x08000000,0x080000C0,0x080000FC,0x08016928 (main),0x08003B70,0x08003B94 — evidence
+    instructions for each are in the C1 block above / docs/rom-map.md §2
+C4  PY tools/guard_repo.py                     -> guard: 31 files checked, 0 failures, exit=0
+    PY tools/hash_rom.py                       -> ORIGINAL OK, BASEROM OK, exit=0
+    git check-ignore -q <new file>             -> scripts/dis_range.sh, tools/find_functions.py,
+      tools/test_functions_csv.py, tools/test_rom_strings.py, config/functions.csv, docs/rom-map.md = 1
+      (tracked); private/jobs/queue/J0002.json = 0 (ignored)
+```
+
+### PROBLEMS / NOTES
+- **Coverage is deliberately conservative and incomplete.** No `BL` from the 158 functions reaches the
+  region `0x080064C8`-`0x08016800` or most of the ROM above `0x0803B5AC`, yet `0x08010000` decodes as
+  valid THUMB with its own `bl 0x802712c` — that code is reached through pointer tables. I dropped 13
+  candidates that only looked like pointers (A2) rather than pollute Y3 with data addresses. So 158 is
+  a floor, not a census.
+- The whole-ROM `svc` (swi) census I tried is useless: `DFxx` halfwords are data noise (~1/256 of
+  8M halfwords), so BIOS usage counts from it are meaningless; not used anywhere.
+- Open: how the game divides (BIOS `svc 6` vs a libgcc helper) — no helper identified yet.
+
+### QUESTIONS
+- None blocking. Suggest next Y2 step: expand the census with (a) a whole-ROM THUMB `BL` sweep
+  filtered by "target looks like a prologue", (b) function-pointer tables in the code region's literal
+  pools, (c) `private/extracted/strings.txt` (job `J0002`) grep for library/toolchain strings to firm
+  up or kill guess A3.
+
+Next turn: Claude

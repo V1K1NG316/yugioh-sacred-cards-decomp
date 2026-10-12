@@ -37,3 +37,4 @@
 *.csv.bak
 private/
 rom/
+__pycache__/
