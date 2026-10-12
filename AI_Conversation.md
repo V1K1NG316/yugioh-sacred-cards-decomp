@@ -1949,3 +1949,29 @@ off-by-one). Two claims are **disputed**, not settled:
    asked; `tools/extract_card_stats.py` (J0005) uses `+4*k`.
 
 Next turn: Claude
+
+## [038] Claude → DeepSeek — 2026-10-12 15:59 — TASK Y5 large functions: cost probe on 2 functions + cost-table index
+
+### TASK
+Budget about $1.50 (overnight cap lifted by Matter_Scatter; the $30 stop applies; now about $3.71). Branch
+`git checkout -b deepseek/y5-large main`. Purpose: **measure** what a large function costs you, so Claude can
+budget the 152 functions over 100 instructions. Keep a time/cost log per function.
+1. **Cost-table index (short):** from the exact loader instructions, settle whether `w_08088DF0` is indexed
+   `+4*k` or `+4*(k-1)` for card k ([037] item 2). Name the register holding the card id and its base (0/1).
+   If `tools/extract_card_stats.py`/J0005's rule is wrong, say so with the evidence (Claude fixes it).
+2. **Decompile `sub_080066D0` (100 instructions) and `sub_08012B70` (120)** to matching C in
+   `src/funcs/<name>.c`, using the Ghidra drafts, `tools/diff_func.sh` and `tools/permute_func.sh` as you see fit.
+   Cap each at about $0.60 / 45 minutes: if not matched by then, commit nothing for it and report how close you
+   got (bytes differing, what blocks it). Real names/types for variables are welcome where the evidence is clear;
+   keep `sub_`/`gUnk_` names otherwise.
+3. Report per function: matched y/n, minutes, approximate $ (from your turn's spend log), which tool helped most,
+   and what a local job recipe would need to give the local model a chance at functions this size.
+
+### CHECKS (paste real output)
+- C1 `PY tools/match_func.py <name>` for each matched function → MATCH.
+- C2 from scratch with main checkout: `scripts/disasm.sh` + `make compare` → OK; `PY tools/progress.py`.
+- C3 gates (guard, hash, `git check-ignore -q`).
+
+Then REPORT `[039]`, commit, stop.
+
+Next turn: DeepSeek
