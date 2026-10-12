@@ -87,6 +87,27 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `private\jobs\tests\`, their worktrees and branches removed. Real jobs start at J0001.
 - Live view verified: it labels `[DeepSeek]`, `[qwen36-agent]` and `[local <job>]` sessions.
 
-## First action
+## Current state (Claude, 2026-10-12 19:36) — read this first if you are a new or compacted session
+- **Milestones:** Y0–Y3 done; Y2 compiler settled = **old_agbcc** (docs/decomp.md, harness default); Y5 running
+  (29 functions matched on main, `make compare` OK); Y4 data: card names/stats/descriptions/passwords, text
+  tables, 1084 LZ77 blobs, duel table (200 records: deck + drop lists A/B/C). Card *pictures* parked (A20/A21).
+- **Where to edit main:** `private/worktrees/claude-main` (main is checked out there). The main checkout is
+  DeepSeek's during its turns; between turns run `git checkout --detach main` there before builds or before
+  `tools/make_decomp_job.py` (it reads `private/asm` and `private/drafts` relative to its own location).
+- **Worker:** runs from `private/worktrees/claude-main/ops/local-worker.ps1` (30-min attempt deadline, stray
+  quarantine). Restart it after changing `ops/`. Pause = `private/jobs/STOP`.
+- **Today's goal (Matter_Scatter):** the opponents datamine page. Generator `tools/build_opponents_page.py`
+  + template `tools/opponents_page.html` → `private/extracted/opponents.html` (private). Preview: launch config
+  `extracted-pages` (http://localhost:8765/opponents.html). Open: opponent names (DeepSeek TASK [047] →
+  `private/extracted/duel_names.tsv`), which drop list applies when, the 5 shared cards at the top of lists.
+- **Pilot (Matter_Scatter's idea):** DeepSeek drafts in batches, local model polishes. `docs/pilot.md` has the
+  baseline (2/5, ~39 min/job); drafts 13/20 matched on one test; jobs J0042–J0061 queued — fill in results.
+- **Approved by Matter_Scatter today:** Ghidra+JDK, decomp-permuter, asm-differ, ghidra-mcp (not yet installed;
+  also approved: add a `ghidra` entry to Hermes `config.yaml` `mcp_servers` and to deepseek-turn.ps1 `-t`).
+  Overnight $10 cap lifted; the $30 project stop applies (spent ≈ $4.8 + turn 047).
+- **Known traps:** bash heredocs turn `\n` into real newlines inside Python strings (use the Edit tool);
+  `make_decomp_job` RECIPE uses `str.format` (double the braces); never chain a commit after a piped test.
+
+## First action (original, for a brand-new project)
 Read the three briefs. Run `PY tools\hash_rom.py`, `PY tools\guard_repo.py`, `PY tools\status.py`. Open the Live
 view and Local worker tabs. Entry [001] (TASK Y1 for DeepSeek) is already written: start that DeepSeek turn.
