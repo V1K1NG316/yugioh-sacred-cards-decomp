@@ -22,7 +22,7 @@ literal pool at `0x08006C70`..`0x08006C98` (DEF base also at `0x080208F8` and 4 
 | `0x08087FDC` | u16[901] | DEF (spell/trap = 65535) |
 | `0x080886E6` | u16[901] | ATK (spell/trap = 65535) |
 | `0x08088DF0` | u32[901] | unknown (BEWD 95, Mystical Elf 319) |
-| `0x08089C04` + 901·i, i=0..7 | u8[901] each | i=1 (`0x08089F89`) = **level**; others unknown |
+| `0x08089C04` + 901·i, i=0..7 | u8[901] each | i=1 (`0x08089F89`) = **level**; i=0 = **attribute**, i=2 = **card type**; i=3..6 named in §"Card property columns"; i=7 (`0x0808B4A7`) is *not* per-card data, it is a lookup table addressed by i=5 |
 Verified against known cards: 1 BEWD 3000/2500 L8, 4 Baby Dragon 1200/700 L3, 22 Summoned Skull 2500/1200,
 35 Dark Magician 2500/2100, 41 Celtic Guardian 1400/1200, 46 Griffore 1200/1500, 82 Red-Eyes B. Dragon 2400/2000.
 In names, `%` stands for a comma ("Winged Dragon% Guardian of the Fortress #1").
@@ -161,6 +161,61 @@ not escapes at all, they are Shift-JIS lead/second bytes. The machine-readable c
 Strega`, Italian). Three codes appear for a second letter that is certainly a typo in the game's own text:
 `0x56` for í in `día`, `0x6B` for é in `météo` (`mêtaêo`). The codes `0x82`/`0x83`/`0x89`/`0x90` never occur
 in the Latin fields: everything inside a `$5` field is raw Shift-JIS, so those bytes are not escapes at all.
+
+## Card property columns, named (DeepSeek 2026-10-12, Y4 part 3)
+The loader `sub_08006BE4` copies every column of `card_stats.tsv` into the card struct at `0x02020B00`, so
+column = struct field. Two fields are named by the *code that prints them*: `sub_08007380` loads struct `+0x16`
+and calls the 24-name getter `sub_0802319C` (`0x08D4BC3C`: Dragon, Magician, Zombie, …, Magic, Trap, Ritual),
+and `sub_080073A8` loads struct `+0x17` and calls the 12-name getter `sub_0801A624` (`0x08D419E0`: Shadow,
+Light, Fiend, Dreams, Pyro, Forest, Wind, Earth, Thunder, Aqua, Divine). Values: type 1..23 (`+0x16`), attribute
+0..11 (`+0x17`), level 1..12 (`+0x18`).
+| `card_stats.tsv` column | struct | meaning | evidence |
+|---|---|---|---|
+| `w_08088DF0` | `+0x0c` | cost (Duelist Level the card needs) | loader compares it with `sub_08014110` (Duelist Level) to pick the real description |
+| `b_08089C04` | `+0x17` | **attribute** index into the 12-name table `0x08D419E0` | `sub_080073A8` -> `sub_0801A624`; values 0..11 |
+| `b_08089F89` | `+0x18` | level | `sub_08006BE4` (`strb` to `+0x18`); BEWD 8, Kuriboh 1 |
+| `b_0808A30E` | `+0x16` | **card type** index into the 24-name table `0x08D4BC3C` | `sub_08007380` -> `sub_0802319C`; values 1..23 |
+| `b_0808A693` | `+0x19` | card-frame graphics id (0..8) | the picture loader `sub_08034AF8`/`sub_080351A4` uses it to pick one of 10 frame graphics (see below); 3 = every Magic card, 4 = every Trap, 5 = every Ritual |
+| `b_0808AA18` | `+0x1b` | optional unique-effect routine id, `0` = none | nonzero for 79 of 900 cards - among them card 2 Mystical Elf, whose own description says it powers up Blue-Eyes White Dragon; the card screens store it to `0x0201CB3C`, index the **code**-pointer tables `0x08D353A0` / `0x080FB79C` and tail-call through the `bx r0` stub `sub_08038E24` |
+| `b_0808AD9D` | `+0x1a` | effect/script id | `2` for all 773 monsters, otherwise one value per non-monster card (Magic 3..125, Ritual 65..113, Trap 55..131, 127 distinct); the card screens store it to `0x0201CB34` and index the code-pointer table `0x08D34B80` |
+| `b_0808B122` | `+0x1c` | per-trap id | nonzero for exactly the 19 Trap cards (values 1..19, all different); `sub_0802AB2C` runs `sub_08028308` only when it is nonzero |
+| `b_0808B4A7` | `+0x1d` | **not a per-card column**: a lookup table indexed by `+0x1a` | the loader does `ldrb r0,[+0x1a]; ldrb r0,[0x0808B4A7 + r0]; strb r0,[+0x1d]`; `sub_0800BB9C` then does `ldrb r4,[struct+0x1d]; lsls r4,#3; ldrh r0,[0x08D3632A + 8*r4]` and loads the card id it finds there |
+Checked against famous cards (C1): the type column matches the real type in **11 of 11** - 1 BEWD 1=Dragon,
+2 Mystical Elf 2=Magician, 3 Hitotsu-Me Giant 5=BeastWarrior, 4 Baby Dragon 1=Dragon, 22 Summoned Skull 8=Fiend,
+35 Dark Magician 2=Magician, 41 Celtic Guardian 4=Warrior, 46 Griffore 6=Beast, 58 Kuriboh 8=Fiend,
+82 Red-Eyes B. Dragon 1=Dragon, 866 Blue-Eyes Ultimate Dragon 1=Dragon. The attribute column is the game's own
+scheme, *not* the TCG attribute: it agrees with the TCG for Light cards (BEWD, Mystical Elf both 2=Light) and
+Dark ones (Dark Magician, Kuriboh 1=Shadow) but calls Celtic Guardian "Light" (TCG: Earth), Griffore "Forest",
+Baby Dragon "Earth", Red-Eyes and Summoned Skull "Fiend" (A15).
+
+## Card pictures (DeepSeek 2026-10-12, Y4 part 3)
+* **Pointer table `0x08D536F0`, 901 words, entry n = card n** (1-based; entry 0 points to an all-zero picture and
+  is never used). The loader reads `u32[0x08D536F0 + 4*cardId]` with its 1-based card id and does *not* use the
+  "-4" trick of the name/description readers, which is why the table carries the extra word; word 901 is outside
+  the table. Consistent with the LZ77 census: 901 of the 576-byte blobs are pointed at by a ROM word.
+* Each entry is BIOS **LZ77** (`0x10` + 24-bit size) decompressing to exactly **576 bytes**.
+* Those 576 bytes are **8 bits per pixel** palette indices in **8x8-pixel tiles of 64 bytes**, nine tiles in
+  row-major order = **24x24 pixels**. Evidence: the byte-period-8 self-correlation dominates (0.20 / 0.33 for
+  cards 1 / 2, against 0.13 for period 16 and 0.12 for period 24), a *linear* reading shows no structure while the
+  tiled reading puts a 1-pixel background border round the picture on all four sides, and 864 of 900 pictures share
+  one background index (`0x9f`).
+* **Palette: the 256-colour BGR555 table at `0x089C54B0`** (512 bytes; entries `0xa6`..`0xff` are zero). The card
+  screen's loader `sub_08034658`/`sub_0803466C` copies `0xa0` halfwords = 320 bytes = 160 colours of it. Index
+  `0x9f` = `0x14A5` = `#292929` is the picture background, index 0 = `0x7FFF` = white. The same index space is
+  used by the card frames below.
+* **Card frames**: `struct[+0x19]` picks one of the 10 pointers at `0x08D536C8` -> `0x0894BCB4 + k*0x400`,
+  1024 bytes each = 16 tiles = **32x32, same 8bpp tile format**; entries 0..8 are the *same* frame with three
+  palette indices remapped (204 byte substitutions: `0x07`->`0x1D` etc.), entry 9 is all zeros. Index 0 renders as
+  a 2-pixel black border with a 1-pixel `0x9f` + frame-colour inner line - a card frame.
+* Drawing: `sub_08034AF8` (picture) / `sub_080351A4` (variant) decompress the art to `0x02018800`, then
+  `sub_08034B40` / `sub_080351EC` merge it with the frame image into a destination given by the caller
+  (`sub_08034684` passes `0x02010400 + slot*32`). The exact merge/tile order on screen is not decoded (the
+  on-ROM pictures are already whole, so the extractor does not need it).
+* Extractor / decoder: `tools/extract_card_images.py` (job `card_images`) writes one 8-bit indexed PNG per card,
+  `private/extracted/cards/<n>.png`, 24x24, with the palette above; check `tools/test_card_images.py`
+  (`cards: 900` / `bytes: 1085114` / `ALL CHECKS PASSED`). Card 1 (Blue-Eyes White Dragon) and card 35
+  (Dark Magician) also decoded by hand into `private/tmp/card_001.png` / `card_035.png`.
+
 
 ## Other leads (unverified)
 - THUMB→ARM thunks (`add rX, pc, #imm; bx rX`) in the code region: `0x08036C70`→`0x08036C74`,

@@ -322,3 +322,37 @@ RESOLVED, new A13, A14), `docs/jobs.md` batch 4.
 - Gates: `PY tools/guard_repo.py` -> `guard: 89 files checked, 0 failures` (exit 0); `PY tools/hash_rom.py` ->
   ORIGINAL and BASEROM `OK` (exit 0); `make compare` (WSL) -> `private/build/yugioh.gba: OK` (exit 0);
   `git check-ignore -q` = 1 for each new file; nothing under `private/` staged.
+
+## 2026-10-12 — Y4 part 3: card property columns named, card pictures decoded (DeepSeek, branch `deepseek/y4-cards`)
+
+- Card struct `0x02020B00` (loader `sub_08006BE4`) now has every `card_stats.tsv` column named. Two are
+  proved by the code that *prints* them: struct `+0x16` = card type (`sub_08007380` -> name getter
+  `sub_0802319C`, table `0x08D4BC3C`, 24 names) and struct `+0x17` = attribute (`sub_080073A8` ->
+  `sub_0801A624`, table `0x08D419E0`, 12 names).
+  `PY private/tmp/y4c3_c1.py` -> `type table (0x08D4BC3C, 24): 0=, 1=Dragon, 2=Magician, ... 23=Ritual`,
+  `attr table (0x08D419E0, 12): 0=, 1=Shadow, 2=Light, 3=Fiend, ... 11=Divine`,
+  `type column: matches the TCG type in all 11 cases` (BEWD Dragon, Mystical Elf/Dark Magician Magician,
+  Hitotsu-Me Giant BeastWarrior, Griffore Beast, Summoned Skull/Kuriboh Fiend, Celtic Guardian Warrior, ...).
+- Other columns: `+0x19` = card-frame graphics id (the picture loader indexes the 10-word table `0x08D536C8`;
+  it is 3 for every Magic card, 4 for every Trap, 5 for every Ritual); `+0x1b` = optional unique-effect
+  routine id, nonzero for 79 cards (Mystical Elf, whose description says it powers up BEWD, is one of them)
+  indexed into **code**-pointer tables `0x08D353A0`/`0x080FB79C`; `+0x1a` = effect/script id (2 for all 773
+  monsters, one distinct value per Magic/Ritual/Trap card) indexing the code table `0x08D34B80`; `+0x1c` =
+  per-trap id, nonzero for exactly the 19 Trap cards. `0x0808B4A7` is **not** a per-card column: the loader
+  does `+0x1d = 0x0808B4A7[+0x1a]`. Guesses A16-A18; the attribute-scheme caveat is A15.
+- Card pictures: table `0x08D536F0` holds **901** words and **entry n = card n** (entry 0 = an all-zero dummy
+  picture). The loader `sub_08034AF8`/`sub_080351A4` reads `u32[0x08D536F0 + 4*cardId]` with the 1-based id
+  (no "-4" trick, unlike `sub_080073E4`), which matches the LZ77 census (901 pointed 576-byte blobs).
+- Format: each blob is BIOS LZ77 -> exactly 576 bytes = **8bpp palette indices in 8x8 tiles of 64 bytes**,
+  9 tiles row-major = **24x24 pixels**; palette = the 256-entry BGR555 table at **`0x089C54B0`** (the card
+  screen loads 0xa0 halfwords = 160 colours of it; `0x9f` = `#292929` is the background of 864 of 900
+  pictures). The 10 card frames at `0x0894BCB4 + k*0x400` (1024 B = 16 tiles = 32x32) are the same format and
+  are the same image with three palette indices remapped (204 byte substitutions per variant).
+- New check `tools/test_card_images.py` + reference `private/tmp/refs_good_img/extract_card_images.py`,
+  verified both ways with `bash private/tmp/break_card_images.sh`: reference -> `cards: 900` /
+  `bytes: 1085114` / `ALL CHECKS PASSED` (exit 0), tool absent -> exit 1, and four broken variants -> exit 1
+  (`FAIL card 1: pixel (9,0) is 115, expected 159`, `FAIL card 1: PLTE is not the 256 colours of 0x089C54B0`,
+  `FAIL 1.png: 600 raw bytes, expected 575`, `FAIL 1.png: 599 raw bytes, expected 600`).
+- Card 1 (Blue-Eyes White Dragon) and card 35 (Dark Magician) decoded by hand: `private/tmp/card_001.png`,
+  `private/tmp/card_035.png` (24x24, 8bpp, 37 / 70 palette indices, background `0x9f` = `#292929`).
+- Job recipe for the local worker: `private/jobs/drafts/card_images.md`; check must be merged on `main` first.

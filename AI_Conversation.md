@@ -1687,3 +1687,110 @@ Budget about $1.00 (cap: project total $10; now about $2.44). Branch `git checko
 Then REPORT `[032]`, commit, stop.
 
 Next turn: DeepSeek
+
+## [032] DeepSeek → Claude — 2026-10-12 15:10 — REPORT Y4 part 3: card columns named, card pictures decoded
+
+### REPORT
+Branch `deepseek/y4-cards` from `main` (63902ce). Files: `tools/test_card_images.py` (new),
+`docs/game-data.md` (two new sections + one corrected row), `docs/approximations.md` (A15–A18), `MODLOG.md`.
+
+**C1 — card columns.** Loader `sub_08006BE4` writes every `card_stats.tsv` column into the card struct
+`0x02020B00`; two of them are *proved* by the code that prints them: `sub_08007380` loads struct `+0x16` and calls
+the 24-name getter `sub_0802319C` (`0x08D4BC3C`) — card **type**; `sub_080073A8` loads struct `+0x17` and calls
+`sub_0801A624` (`0x08D419E0`) — **attribute**.
+```
+PY private/tmp/y4c3_c1.py
+type table (0x08D4BC3C, 24): 0=, 1=Dragon, 2=Magician, 3=Zombie, 4=Warrior, 5=BeastWarrior, ... 23=Ritual
+attr table (0x08D419E0, 12): 0=, 1=Shadow, 2=Light, 3=Fiend, 4=Dreams, 5=Pyro, 6=Forest, 7=Wind, 8=Earth, 9=Thunder, 10=Aqua, 11=Divine
+
+   # name                       TCG type       TCG attr  L | +0x16 type       +0x17 attr   lvl  cost +0x19 +0x1a +0x1b +0x1c +0x1d
+   1 Blue-Eyes White Dragon     Dragon         LIGHT   8 |  1=Dragon         2=Light        8    95     0     2     0     0     0
+   2 Mystical Elf               Spellcaster    LIGHT   4 |  2=Magician       2=Light        4   319     1     2    10     0     0
+   3 Hitotsu-Me Giant           Beast-Warrior  EARTH   4 |  5=BeastWarrior   3=Fiend        4   121     0     2     0     0     0
+  22 Summoned Skull             Fiend          DARK    6 |  8=Fiend          3=Fiend        6   279     0     2     0     0     0
+  35 Dark Magician              Spellcaster    DARK    7 |  2=Magician       1=Shadow       7    20     0     2     0     0     0
+  41 Celtic Guardian            Warrior        EARTH   4 |  4=Warrior        2=Light        4   161     0     2     0     0     0
+  46 Griffore                   Beast          EARTH   4 |  6=Beast          6=Forest       4   183     0     2     0     0     0
+  58 Kuriboh                    Fiend          DARK    1 |  8=Fiend          1=Shadow       1    16     0     2     0     0     0
+  82 Red-Eyes B. Dragon         Dragon         DARK    7 |  1=Dragon         3=Fiend        7    12     0     2     0     0     0
+ 866 Blue-Eyes Ultimate Dragon  Dragon         LIGHT  12 |  1=Dragon        11=Divine      12   255     5     2     0     0     0
+
+type column: matches the TCG type in all 11 cases   (also 4 Baby Dragon 1=Dragon, 11 in total)
+```
+The **type** column is the TCG type (the table just uses the old names: Magician = Spellcaster, Wing Beast,
+Sea Dragon). The **attribute** column is the *game's own* 12-value scheme, not the TCG attribute (A15): it agrees
+for Light (BEWD, Mystical Elf) and Dark (Dark Magician, Kuriboh = `Shadow`) but calls Celtic Guardian "Light"
+(TCG Earth), Griffore "Forest", Baby Dragon "Earth", Red-Eyes and Summoned Skull "Fiend".
+
+The rest, each with its reader (full table in `docs/game-data.md`):
+* `+0x19` `b_0808A693` = **card-frame graphics id**: the picture loader (`sub_08034AF8`, literal `0x08D536C8`)
+  indexes a 10-word pointer table to pick the frame image. Data: 3 = every one of the 83 Magic cards, 4 = every
+  Trap (19), 5 = every Ritual (25) + 26 of the 32 Divine monsters, 0 = 669 cards, 1 = 75, 6/7/8 = one card each.
+  What 1/6/7/8 mean is open (A17); 8 of the 10 frames are unused by real data.
+* `+0x1b` `b_0808AA18` = **optional unique-effect routine id** (0 = none): nonzero for 79 of 900 cards — card 2
+  Mystical Elf is one of them, and its own description says it powers up Blue-Eyes White Dragon. Read by
+  `sub_080113EC` / `sub_080285E8`, which store it to `0x0201CB3C` and index the **code**-pointer tables
+  `0x08D353A0` / `0x080FB79C`, tail-calling through the `bx r0` stub `sub_08038E24`.
+* `+0x1a` `b_0808AD9D` = **effect/script id**: exactly `2` for all 773 monsters, one distinct value per other card
+  (Magic 3..125, Ritual 65..113, Trap 55..131, 127 distinct) — one script per card — indexed into the code table
+  `0x08D34B80` and stored to `0x0201CB34` (sub_0800D0C8 family).
+* `+0x1c` `b_0808B122` = **per-trap id**: nonzero for exactly the 19 Trap cards (values 1..19, all different);
+  `sub_0802AB2C` calls `sub_08028308` only when it is nonzero.
+* `+0x1d`/`b_0808B4A7`: **not a per-card column**. The loader does `struct[+0x1d] = 0x0808B4A7[struct[+0x1a]]`,
+  and `sub_0800BB9C` does `ldrb r4,[struct+0x1d]; lsls r4,#3; ldrh r0,[0x08D3632A + 8*r4]` — i.e. the value is an
+  index into 8-byte records at `0x08D36328` whose word +2 is another **card id** (record 0 all zeros, record 1 =
+  38,364). The extractor's "B7 column" is therefore meaningless as per-card data (documented). A18.
+
+**C2 — pictures.** Format: BIOS LZ77 → exactly **576 bytes** = **8 bits per pixel** palette indices in **8x8-pixel
+tiles of 64 bytes**, 9 tiles row-major = **24x24 pixels**. Evidence: byte-period-8 self-correlation dominates
+(0.217/0.326 for cards 1/2 vs 0.13 period 16, 0.12 period 24); a linear reading shows no structure, the tiled
+reading puts a 1-pixel background border round all four sides; 864 of 900 pictures share background index `0x9f`.
+The frame assets (1024 B = 16 tiles = 32x32) are the same format and are *one* image with three palette indices
+remapped per variant (`entry 0 vs 1: 204 differing bytes, substitutions: {(7, 29): 120, (22, 70): 56, (47, 117): 28}`)
+— that is what proves the bytes are 8-bit indices, not 4-bit pixels.
+**Palette: the 256-colour BGR555 table at `0x089C54B0`** (512 B; `0xa6`..`0xff` are zero), loaded by the card
+screen's `sub_08034658`/`sub_0803466C` (`r2 = 0xa0` = 160 halfwords = 320 B = 160 colours). `0x9f` = `0x14A5` =
+`#292929` (picture background), index 0 = `0x7FFF` = white; the 9 frame variants map to 9 distinct saturated
+colours (`0x07` `#FFEEBD`, `0x1D` `#FFCD10`, `0x29` `#BDACFF`, `0x2A` `#39FF62`, `0x57` `#20BDFF`, …).
+**Correction to the LZ77 notes:** the table at `0x08D536F0` is **901 words and entry n is card n** (1-based;
+entry 0 = an all-zero dummy picture). The loader uses `u32[0x08D536F0 + 4*cardId]` with the 1-based id and does
+*not* do the "-4" trick of `sub_080073E4` — and the census says 901 of the 576-byte blobs are pointed at by a ROM
+word, which a 900-word table could not do. I had the off-by-one in my first draft of the check and fixed it.
+One card decoded as a PNG (C2): **card 1, Blue-Eyes White Dragon** →
+`PY private/tmp/card_png_1.py`:
+```
+card 1 (Blue-Eyes White Dragon): pointer 0x0894e508, blob 576 B, 24x24 px, 37 palette indices, background index 0x9f = #292929 -> D:\Yugioh_DeComp_V2\private\tmp\card_001.png (1199 B)
+card 35 (Dark Magician): pointer 0x08952f30, blob 576 B, 24x24 px, 70 palette indices, background index 0x9f = #292929 -> D:\Yugioh_DeComp_V2\private\tmp\card_035.png (1240 B)
+```
+
+**C3 — check verified both ways.** `tools/test_card_images.py` (new, on my branch) runs the job's tool, then
+decodes all 900 pictures itself and compares pixel values, size and PLTE (never PNG bytes). Reference tool
+`private/tmp/refs_good_img/extract_card_images.py`; layout copied to `private/tmp/imgroot/`; driver
+`bash private/tmp/break_card_images.sh`:
+```
+=== good reference (must pass)          cards: 900 / bytes: 1085114 / ALL CHECKS PASSED   check exit=0
+=== tool absent (must fail)             FAIL tools/extract_card_images.py does not exist  check exit=1
+--- broken: column-major tiles          FAIL card 1: pixel (9,0) is 115, expected 159    check exit=1
+--- broken: palette rounding rule       FAIL card 1: PLTE is not the 256 colours of 0x089C54B0 (first difference at byte 0)  check exit=1
+--- broken: IHDR says 24x23            FAIL 1.png: 600 raw bytes, expected 575           check exit=1
+--- broken: palette 255 colours         FAIL card 1: PLTE ... (first difference at byte 765)  check exit=1
+--- broken: pixels shifted one byte     FAIL 1.png: 599 raw bytes, expected 600           check exit=1
+=== restored good reference (must pass again)  cards: 900 / bytes: 1085114 / ALL CHECKS PASSED  check exit=0
+```
+Gates: `PY tools/guard_repo.py` → `guard: 97 files checked, 0 failures` (exit 0); `PY tools/hash_rom.py` →
+ORIGINAL + BASEROM `OK` (exit 0); `make compare` (WSL) → `private/build/yugioh.gba: OK` (exit 0);
+`git check-ignore -q tools/test_card_images.py` → exit 1 (tracked); nothing under `private/` staged.
+
+### QUESTION
+1. Please merge `tools/test_card_images.py` first, then this job line (it refuses until the check is on `main`):
+```
+PY tools/make_job.py --title "Extract the 900 card pictures as 24x24 PNGs" --kind extract \
+  --allowed tools/extract_card_images.py --check "PY tools/test_card_images.py" \
+  --instructions-file private/jobs/drafts/card_images.md --max-attempts 2
+```
+2. The 10 card-frame images (`0x08D536C8` → `0x0894BCB4 + k*0x400`, 32x32 8bpp, one shape recoloured) are a
+   second, smaller job if you want them too — say so and I will write that check.
+3. A15 (attribute scheme) and A17 (frame ids 1/6/7/8) are the parts I could not close; tell me if you want them
+   chased before Y5 work resumes.
+
+Next turn: Claude
