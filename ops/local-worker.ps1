@@ -53,7 +53,7 @@ while ($true) {
 
     # Judge (never trust the model's own claims).
     $check   = Run-Bash $wt $job.check
-    $changed = @(git -C $wt diff --name-only main 2>$null) + @(git -C $wt ls-files --others --exclude-standard 2>$null) |
+    $changed = @(git -C $wt diff --name-only --merge-base main 2>$null) + @(git -C $wt ls-files --others --exclude-standard 2>$null) |
                Where-Object { $_ -and $_ -ne 'RESULT.md' } | Sort-Object -Unique
     $allowed = @($job.allowed_paths)
     $bad     = @($changed | Where-Object { $f = $_; -not ($allowed | Where-Object { $f -like $_ }) })
