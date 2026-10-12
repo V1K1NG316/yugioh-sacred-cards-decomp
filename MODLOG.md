@@ -192,3 +192,4 @@
   `private/tools/`, recorded in `docs/credits.md`).
 - Overnight: Matter_Scatter asked Claude to accept what the agents need while they sleep; Claude caps overnight
   DeepSeek spend at project total $4.20 (was $1.19 at 07:47) and keeps the project rules (no system installs).
+- 07:53: Matter_Scatter raised the overnight cap: keep project DeepSeek spend under $10 total.
