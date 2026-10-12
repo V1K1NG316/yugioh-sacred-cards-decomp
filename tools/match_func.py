@@ -12,9 +12,16 @@ side-by-side disassembly of the ROM bytes and ours.
   src/funcs/<name>.c comes from *this* checkout (a job worktree counts); the compiler, the
   ROM and all build output come from the main checkout, D:\\Yugioh_DeComp_V2, so that a job
   can never corrupt them.
+
+  Each run gets its own build directory, private/build/match/<name>.<pid>, which is deleted
+  again when the run ends. Two runs at the same time (a local job's check while `make compare`
+  is going) therefore never collide; --keep leaves the directory behind for inspection, and
+  --workdir picks the path (tools/diff_func.py does both).
 """
 import argparse
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +29,7 @@ from pathlib import Path
 MAIN = Path(r'D:\Yugioh_DeComp_V2')
 WSL_DISTRO = 'Ubuntu-24.04'
 WSL_MAIN = '/mnt/d/Yugioh_DeComp_V2'
+BUILD = ('private', 'build', 'match')
 CSV = 'config/functions.csv'
 DIS_LINE = re.compile(r'^\s*([0-9a-f]+):\s+([0-9a-f ]+?)\s\s+(.*)$')
 
@@ -80,11 +88,30 @@ def side_by_side(rom, ours, rom_lines, our_lines, size):
         print('    +%-5d  %-28s %s%s' % (off, rb or '?', ot or '?', flag))
 
 
+def run_dir_for(a, main_dir, name):
+    """The build directory for this run. Default: private/build/match/<name>.<pid> -- unique per
+    process, which is what makes two runs at once safe. --workdir overrides it (and implies
+    --keep, so the caller can read the files); either way it has to stay inside
+    private/build/match, because scripts/match_func.sh wipes that directory before it starts."""
+    build_root = main_dir.joinpath(*BUILD).resolve()
+    run = Path(a.workdir) if a.workdir else build_root / ('%s.%d' % (name, os.getpid()))
+    try:
+        run.resolve().relative_to(build_root)
+    except ValueError:
+        sys.exit('match_func: the build dir must be under %s (got %s)' % (build_root, run))
+    return run, (a.workdir is not None or a.keep)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('name', help='function name, e.g. sub_0800AF94 (also the .c file name)')
     ap.add_argument('--main', default=str(MAIN), help='main checkout (default: %(default)s)')
     ap.add_argument('--quiet', action='store_true', help='print only the verdict')
+    ap.add_argument('--keep', action='store_true',
+                    help='keep the build directory and print its path')
+    ap.add_argument('--workdir',
+                    help='build directory to use (implies --keep); '
+                         'default private/build/match/<name>.<pid>')
     a = ap.parse_args()
 
     main_dir = Path(a.main)
@@ -104,64 +131,72 @@ def main():
     if re.search(r'\b(asm|__asm__|__asm)\b', src.read_text(encoding='utf-8', errors='replace')):
         sys.exit('match_func: FAIL %s uses inline asm; write the function in plain C' % src.name)
 
-    cmd = ['wsl', '-d', WSL_DISTRO, '--cd', WSL_MAIN, '--', 'bash', 'scripts/match_func.sh',
-           name, '0x%08X' % row['addr'], wsl_path(src.parent)]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        if r.stdout:
-            print(r.stdout, end='')
-        if r.stderr:
-            print(r.stderr, end='')
-        sys.exit('match_func: the agbcc pipeline failed (exit %d)' % r.returncode)
+    work, keep = run_dir_for(a, main_dir, name)
+    try:
+        cmd = ['wsl', '-d', WSL_DISTRO, '--cd', WSL_MAIN, '--', 'bash', 'scripts/match_func.sh',
+               name, '0x%08X' % row['addr'], wsl_path(src.parent), wsl_path(work)]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            if r.stdout:
+                print(r.stdout, end='')
+            if r.stderr:
+                print(r.stderr, end='')
+            sys.exit('match_func: the agbcc pipeline failed (exit %d)' % r.returncode)
 
-    work = main_dir / 'private' / 'build' / 'match' / name
-    size = int((work / 'size.txt').read_text().strip())
-    sections = {k.lower(): int(v, 16) for k, v in
-                (l.split() for l in (work / 'sections.txt').read_text().split('\n') if l.strip())}
-    unresolved = [s for s in (work / (name + '.unresolved')).read_text().split() if s]
+        size = int((work / 'size.txt').read_text().strip())
+        sections = {k.lower(): int(v, 16) for k, v in
+                    (l.split() for l in (work / 'sections.txt').read_text().split('\n') if l.strip())}
+        unresolved = [s for s in (work / (name + '.unresolved')).read_text().split() if s]
 
-    if size < 2:
-        sys.exit('match_func: FAIL %s has no size (%d bytes): define exactly that function in %s'
-                 % (name, size, src.name))
-    for sec, n in sections.items():
-        if n and (sec.startswith(('.data', '.rodata', '.bss')) or (sec.startswith('.text') and sec != '.text')):
-            sys.exit('match_func: FAIL section %s is not empty (%d bytes): this function needs data placed at '
-                     'a second address, which the harness cannot do yet' % (sec, n))
-    if sections.get('.text', 0) > (size + 3) & ~3:
-        sys.exit('match_func: FAIL .text is %d bytes but %s is only %d: the file may define only %s'
-                 % (sections['.text'], name, size, name))
-    if unresolved:
-        sys.exit('match_func: undefined symbols that are not NAME_<8 hex digits>: %s'
-                 % ', '.join(unresolved))
+        if size < 2:
+            sys.exit('match_func: FAIL %s has no size (%d bytes): define exactly that function in %s'
+                     % (name, size, src.name))
+        for sec, n in sections.items():
+            if n and (sec.startswith(('.data', '.rodata', '.bss')) or (sec.startswith('.text') and sec != '.text')):
+                sys.exit('match_func: FAIL section %s is not empty (%d bytes): this function needs data placed at '
+                         'a second address, which the harness cannot do yet' % (sec, n))
+        if sections.get('.text', 0) > (size + 3) & ~3:
+            sys.exit('match_func: FAIL .text is %d bytes but %s is only %d: the file may define only %s'
+                     % (sections['.text'], name, size, name))
+        if unresolved:
+            sys.exit('match_func: undefined symbols that are not NAME_<8 hex digits>: %s'
+                     % ', '.join(unresolved))
 
-    ours = (work / (name + '.bin')).read_bytes()[:size]
-    rom = (work / 'rom.bin').read_bytes()
-    if len(rom) != size or len(ours) != size:
-        sys.exit('match_func: got %d ROM bytes and %d compiled bytes, expected %d'
-                 % (len(rom), len(ours), size))
+        ours = (work / (name + '.bin')).read_bytes()[:size]
+        rom = (work / 'rom.bin').read_bytes()
+        if len(rom) != size or len(ours) != size:
+            sys.exit('match_func: got %d ROM bytes and %d compiled bytes, expected %d'
+                     % (len(rom), len(ours), size))
 
-    hexs = lambda b: ' '.join('%02x%02x' % (b[i + 1], b[i]) for i in range(0, len(b) - 1, 2))
-    room = row['next'] - row['addr']
-    if ours == rom:
-        print('MATCH %s @ 0x%08X: %d bytes identical, %d bytes of room in the ROM (next start 0x%08X)'
-              % (name, row['addr'], size, room, row['next']))
+        hexs = lambda b: ' '.join('%02x%02x' % (b[i + 1], b[i]) for i in range(0, len(b) - 1, 2))
+        room = row['next'] - row['addr']
+        if keep:
+            print('match_func: build dir %s (kept)' % work)
+        if ours == rom:
+            print('MATCH %s @ 0x%08X: %d bytes identical, %d bytes of room in the ROM (next start 0x%08X)'
+                  % (name, row['addr'], size, room, row['next']))
+            if not a.quiet:
+                print('      %s' % hexs(rom))
+            return 0
+
+        first = next(i for i in range(size) if rom[i] != ours[i])
+        print('FAIL  %s @ 0x%08X: first difference at +0x%X (rom %02x, ours %02x); %d/%d bytes differ'
+              % (name, row['addr'], first, rom[first], ours[first],
+                 sum(1 for i in range(size) if rom[i] != ours[i]), size))
         if not a.quiet:
-            print('      %s' % hexs(rom))
-        return 0
-
-    first = next(i for i in range(size) if rom[i] != ours[i])
-    print('FAIL  %s @ 0x%08X: first difference at +0x%X (rom %02x, ours %02x); %d/%d bytes differ'
-          % (name, row['addr'], first, rom[first], ours[first],
-             sum(1 for i in range(size) if rom[i] != ours[i]), size))
-    if not a.quiet:
-        print('      rom  %s' % hexs(rom))
-        print('      ours %s' % hexs(ours))
-        side_by_side(rom, ours,
-                     disasm_lines(work / 'disasm_rom.txt', row['addr']),
-                     disasm_lines(work / 'disasm_ours.txt', row['addr']), size)
-        if (work / (name + '.ld.log')).exists() and (work / (name + '.ld.log')).read_text().strip():
-            print('ld said: %s' % (work / (name + '.ld.log')).read_text().strip())
-    return 1
+            print('      rom  %s' % hexs(rom))
+            print('      ours %s' % hexs(ours))
+            side_by_side(rom, ours,
+                         disasm_lines(work / 'disasm_rom.txt', row['addr']),
+                         disasm_lines(work / 'disasm_ours.txt', row['addr']), size)
+            if (work / (name + '.ld.log')).exists() and (work / (name + '.ld.log')).read_text().strip():
+                print('ld said: %s' % (work / (name + '.ld.log')).read_text().strip())
+        return 1
+    finally:
+        # A job's check must leave nothing behind: only this run's own directory goes, and only
+        # when the caller did not ask to keep it.
+        if not keep:
+            shutil.rmtree(work, ignore_errors=True)
 
 
 if __name__ == '__main__':

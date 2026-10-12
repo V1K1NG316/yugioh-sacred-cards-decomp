@@ -38,3 +38,22 @@ Community tools and sources used (name, URL, version/commit, licence).
   SHA-256 `ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db` (published in the
   release notes; verified by `scripts/ghidra_setup.sh`). Unpacked to `private/tools/ghidra/`.
   Licence: Apache-2.0. Everything under `private/` — nothing is committed.
+
+- **decomp-permuter** (github.com/simonlindholm/decomp-permuter, commit
+  `8556c81d80d1c1af98a858c8f4dc951357f29139`, 2026-10-06) — randomized search for C that a
+  compiler turns into the ROM's bytes; the search's score is a hint, never a check. Used by
+  `scripts/permute_func.sh` / `tools/permute_func.sh` to hunt near misses. Cloned into
+  `private/tools/decomp-permuter/` (13 MiB with its git history) by `scripts/decomp_tools.sh`.
+  Licence: MIT (`LICENSE`).
+- **asm-differ** (github.com/simonlindholm/asm-differ, commit
+  `0dd09af8f8008f1f880327cf0aca3b26d2562ea2`, 2026-09-06) — the side-by-side assembly diff
+  (the viewer decomp.me uses). Used by `scripts/diff_func.sh` / `tools/diff_func.sh`, which writes
+  the `diff_settings.py` it reads. Cloned into `private/tools/asm-differ/` (913 KiB) by
+  `scripts/decomp_tools.sh`. Licence: MIT (`LICENSE`).
+- **Python packages for those two** — `toml` (permuter settings), `colorama` and `watchdog`
+  (asm-differ imports both at startup), `levenshtein` and `cxxfilt` (its better diff algorithm and
+  `--source`), installed into `private/venv/` (26 MiB). Ubuntu 24.04's `python3` has no pip, and
+  `python3-venv` would be a system-wide install (needs Matter_Scatter's approval), so
+  `scripts/decomp_tools.sh` bootstraps pip *into that venv* from
+  `https://bootstrap.pypa.io/get-pip.py`. Nothing is installed system-wide.
+  Licences: MIT / BSD-3-Clause / Apache-2.0 per package.
