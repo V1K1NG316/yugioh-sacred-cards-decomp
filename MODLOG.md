@@ -57,3 +57,23 @@
 - J0002 requeued: check expanded, allowed only `tools/rom_strings.py`, explicit commit rules; old branch deleted
   (it held the ROM strings); failed record in `private/jobs/tests/J0002.failed-ops-bug.json`.
 - Briefs: HERMES_START (job rules), LOCAL_WORKER rule 7.
+## 2026-10-12 06:16 — Y2 part 2: census 158 → 1034, extents, code/data map (DeepSeek, branch `deepseek/y2-census2`)
+- New: `tools/code_map.py` (read-only code/data report). Updated: `tools/find_functions.py`
+  (pointer-table seeds, A4/A6 filters, `size` column), `tools/test_functions_csv.py` (stronger check),
+  `config/functions.csv` (header `address,name,mode,size,source`, 1034 rows), `docs/rom-map.md`
+  (§4 census, §5 code/data map), `docs/approximations.md` (A2 updated, A4–A7 added).
+- `PY tools/find_functions.py` → `functions: 1034 / thumb: 1031 arm: 3 / lowest: 0x08000000
+  highest: 0x0803B5AC / source bl_thumb: 347, crt0_bx_literal: 1, crt0_writes_0x03007FFC: 1,
+  irq_table: 2, ptr_prologue: 681, reset_branch: 1, reset_vector: 1 / pointer values seen via bx rX
+  but not accepted (A2): 26 (of which now in the census anyway: 3) / ptr_prologue rejected by A4: 0 /
+  by A6: 20`. The 20 A6 rejections are all data-half addresses ≥ 0x4C554 bytes from BL-closure code.
+- `PY tools/test_functions_csv.py` → `rom THUMB BL pairs: 38338 distinct targets: 32440 /
+  rows: 1034 thumb: 1031 arm: 3 / ptr_prologue rows: 681 bl_thumb rows: 347 / ALL CHECKS PASSED`, exit 0.
+  Falsification of the new check: appending `0x080FFF00,sub_080FFF00,thumb,4,bl_thumb` to the CSV →
+  `FAIL 0x080FFF00 bl_thumb: no THUMB BL into it from inside another extent`, exit 1; restored → exit 0.
+- `PY tools/code_map.py` → code bytes 64170 (0.38% of the ROM), code region
+  `0x08000000..0x0803B5D0` (26.39% of it function extents), 5 gaps > 4 KiB (43646 B) inside the code
+  region, two of them code-like (`0x08004318`, `0x08031DA4`); 1 MiB data-block table in `docs/rom-map.md` §5.
+- Gates: `wsl ... bash scripts/build.sh` → `private/build/yugioh.gba: OK`, exit 0;
+  `guard_repo.py` 38 files, 0 failures; `hash_rom.py` ORIGINAL+BASEROM OK; all changed/new files
+  check-ignore = 1. Job `J0002` (string extractor) passed at 06:14 on main.
