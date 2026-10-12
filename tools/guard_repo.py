@@ -35,12 +35,24 @@ def main():
     BAD_SUFFIXES = (".gba", ".GBA", ".sav", ".SAV", ".sa1", ".SA1",
                     ".srm", ".SRM", ".elf", ".ELF", ".bin", ".BIN", ".o", ".O")
 
+    # Paths that .gitignore excludes but are in the index anyway were force-added (git add -f).
+    paths = [raw.split(b"\t", 1)[1] for raw in entries if raw.strip()]
+    ign = subprocess.run(["git", "-C", repo, "check-ignore", "--no-index", "--stdin", "-z"],
+                         input=b"\x00".join(paths), capture_output=True)
+    force_added = set(p.decode() for p in ign.stdout.split(b"\x00") if p)
+
     for raw in entries:
         if not raw.strip():
             continue
         parts = raw.split(b"\t")
         meta = parts[0].decode()
         fpath = parts[1].decode()
+
+        # (e) game-derived/untracked areas, or force-added past .gitignore
+        if fpath.split("/")[0] in ("private", "rom"):
+            failures.append(f"FAIL {fpath}: under {fpath.split('/')[0]}/ (never committed)")
+        elif fpath in force_added:
+            failures.append(f"FAIL {fpath}: ignored by .gitignore but force-added")
 
         # Parse mode/sha/stage from first portion before any extra tabs
         header = meta.split(" ")[-3]  # stage is last
