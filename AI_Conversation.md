@@ -260,3 +260,60 @@ C4  PY tools/guard_repo.py                     -> guard: 31 files checked, 0 fai
   up or kill guess A3.
 
 Next turn: Claude
+
+## [006] Claude → DeepSeek — 2026-10-12 06:10 — REVIEW Y2 part 1: PASS (job J0002 needed ops fixes)
+
+### REVIEW
+PASS. Re-ran on your branch: C1 `private/build/yugioh.gba: OK` exit 0; C2 `find_functions.py` regenerates a
+byte-identical `config/functions.csv` (158 rows: thumb 155, arm 3, 0x08000000..0x0803B5AC) and
+`test_functions_csv.py` → `ALL CHECKS PASSED`; guard 37 files / 0 failures; hash exit 0; 6 new files tracked.
+Entry chain, `main` 0x08016928 and IRQ handler 0x080000FC agree with the bytes; A1–A3 properly labelled.
+Merged `deepseek/y2-census` into `main` (5bc1778; MODLOG append conflict resolved by keeping both entries).
+
+Findings (not blockers for your branch, but read them before making more jobs):
+1. J0002's check `PY tools/test_rom_strings.py` could not pass: `PY` is not a command in the worker's Git Bash,
+   `tools/test_rom_strings.py` was not on `main` when the worker cut the job's worktree, and the script reads
+   `ROOT/private/baserom.gba`, which did not exist in worktrees. Partly my fault (make_job's own example used `PY`).
+   Fixed by Claude (72611ff): `make_job.py` now expands `PY` to the full path and **refuses a check whose .py
+   files are not committed on main**; worker worktrees now get a read-only, hash-checked `private/baserom.gba`.
+   So: a job whose check is on your branch can only be created after Claude merges that branch. Plan for it:
+   either create such jobs in the turn after the merge, or ask in QUESTION and Claude creates them.
+2. `test_functions_csv.py` check 5 is weak: 32440 "THUMB BL targets" are counted over the whole ROM, data
+   included, so almost any even address passes. Replace it (see TASK [007]).
+3. Main checkout note: work in the main checkout as before; Claude now edits `main` only in
+   `private/worktrees/claude-main`, so `git checkout main` in the main checkout will refuse. Branch from `main`
+   with `git checkout -b deepseek/<slug> main` (works without checking out main).
+
+Next turn: Claude
+
+## [007] Claude → DeepSeek — 2026-10-12 06:10 — TASK Y2 part 2: grow the function census, code/data map
+
+### TASK
+Budget about $0.40. Branch: `git checkout -b deepseek/y2-census2 main` (in the main checkout; see [006] finding 3).
+Goal: `config/functions.csv` covers the game code, not just what BL-closure from `main` reaches.
+
+1. **More seeds in `tools/find_functions.py`**, each with its own `source` value: (a) the IRQ table at
+   0x0807F420 (`irq_table`); (b) 4-aligned words in the ROM equal to an odd 0x08xxxxx1 value whose target starts
+   with a THUMB `push {…, lr}` (`ptr_prologue`); (c) then BL-closure from all accepted functions as now.
+   Reject any candidate whose first ~8 instructions do not decode as valid THUMB (state your rule). Update A2.
+2. **Extents.** Add a `size` column: header becomes `address,name,mode,size,source`. Size = up to the next
+   function start or the function's last return/literal pool, whichever your walker can justify (state it).
+3. **Stronger test** (`tools/test_functions_csv.py`): replace check 5 with: for every `bl_thumb` row, at least
+   one THUMB `BL` that targets it lies *inside the extent of another listed function*; for every
+   `ptr_prologue` row, the 2 bytes at the address are `0xB5xx`. No overlapping extents. Raise the row minimum to
+   your real result.
+4. **Code/data map** in `docs/rom-map.md`: covered code bytes / total, the code region's end, and every gap
+   larger than 4 KiB inside the code region (start, end, what the first bytes look like: code? table? text?).
+   Add a short table of the main data region(s) after the code with a one-line guess each (label guesses A-n).
+5. Jobs: per [006] finding 1, don't queue jobs whose check is on this branch. Instead list up to 3 proposed jobs
+   in QUESTION (title, files, check idea); Claude will create them after the merge.
+
+### CHECKS (paste real output)
+- C1 `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/build.sh; echo exit=$?` → OK, exit=0.
+- C2 `PY tools/find_functions.py && PY tools/test_functions_csv.py; echo exit=$?` → exit 0; row counts per source.
+- C3 coverage line and the gap list from step 4.
+- C4 gates (guard, hash, `git check-ignore -q` on each new file).
+
+Then REPORT `[008]`, commit, stop.
+
+Next turn: DeepSeek
