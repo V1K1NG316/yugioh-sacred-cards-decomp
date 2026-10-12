@@ -23,3 +23,18 @@ Community tools and sources used (name, URL, version/commit, licence).
   the same terms the pret project ships it under). Used for Y5: it compiles `src/funcs/*.c` into
   the exact ROM bytes (see `docs\decomp.md` §5). The invocation (flags, include paths, the
   `cpp`/`agbcc`/`as` sequence) is copied from pokefirered's Makefile.
+- **Eclipse Temurin JDK 21 (21.0.12.1+1)** — the Java runtime Ghidra needs, Linux x64 tarball
+  `OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz` (198 MiB) from
+  https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/ .
+  SHA-256 `ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94` (the value the Adoptium
+  API publishes for that file; `scripts/ghidra_setup.sh` verifies it). Unpacked to
+  `private/tools/jdk/`; `scripts/ghidra_drafts.sh` puts its `bin` in front of `PATH` for Ghidra
+  only. Licence: GNU GPL v2 with the Classpath Exception.
+- **Ghidra 12.1.4 (public build 2026-09-21)** — NSA's reverse engineering suite; here only its
+  headless mode is used, to disassemble the ROM's functions and produce decompiler *drafts* for the
+  human/agent writing matching C (`scripts/ghidra_drafts.sh`, `tools/ghidra/GbaDecompDrafts.java`).
+  Zip `ghidra_12.1.4_PUBLIC_20260921.zip` (543 MiB) from
+  https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ .
+  SHA-256 `ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db` (published in the
+  release notes; verified by `scripts/ghidra_setup.sh`). Unpacked to `private/tools/ghidra/`.
+  Licence: Apache-2.0. Everything under `private/` — nothing is committed.

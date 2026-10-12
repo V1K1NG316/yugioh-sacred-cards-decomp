@@ -192,3 +192,26 @@
   `private/tools/`, recorded in `docs/credits.md`).
 - Overnight: Matter_Scatter asked Claude to accept what the agents need while they sleep; Claude caps overnight
   DeepSeek spend at project total $4.20 (was $1.19 at 07:47) and keeps the project rules (no system installs).
+
+## 2026-10-12 08:58 — DeepSeek: Ghidra headless decompiler drafts (TASK [019])
+- `scripts/ghidra_setup.sh` (new): downloads the Java runtime and Ghidra into `private/tools/`, each
+  checked against the SHA-256 its project publishes.
+  `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_setup.sh`
+  → `OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz: OK`,
+  `ghidra_12.1.4_PUBLIC_20260921.zip: OK`, `openjdk version "21.0.12.1"`.
+- `tools/ghidra/GbaDecompDrafts.java` (new) + `scripts/ghidra_drafts.sh` (new): headless import of
+  `private/baserom.gba` as raw `ARM:LE:32:v4t` at 0x08000000, `TMode` set per row of
+  `config/functions.csv`, one function created per row, analysis, then the decompiler writes
+  `private/ghidra/<name>.c`.
+  `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_drafts.sh`
+  → `funcs: 1977 created, 0 renamed, 0 failed, of 1977 rows`;
+  `drafts: 1977 written, 0 had no function, 0 decompile failures, 1295595 C chars`.
+  Analysis is time-boxed (`-analysisTimeoutPerFile 600`); re-run for one function:
+  `... bash scripts/ghidra_drafts.sh --only sub_080016CC` → `drafts: 1 written` in 45 s.
+- `tools/make_decomp_job.py`: a job's recipe quotes the draft's path when `private/ghidra/<name>.c`
+  exists. `PY tools/make_decomp_job.py sub_080016CC --dry-run` → the recipe now contains
+  "A decompiler DRAFT of this function is at `D:/Yugioh_DeComp_V2/private/ghidra/sub_080016CC.c`".
+- Docs: `docs/decomp.md` §8 (the loop), `docs/credits.md` (Temurin JDK 21, Ghidra 12.1.4 + hashes).
+- Gates: `tools/guard_repo.py` 66 files, 0 failures; `tools/hash_rom.py` OK; `git check-ignore -q` = 1
+  for each new file; `make compare` → `private/build/yugioh.gba: OK`.
+

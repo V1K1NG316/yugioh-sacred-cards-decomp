@@ -29,6 +29,7 @@ style to copy, #4 is the only test that counts.
    `ldr rN, _08004758` and you must reproduce it without writing it yourself (see rule 3c).
    `.incbin` at the end of the file is data behind the function -- leave it alone, it is not yours.
    `bl sub_YYYYYYYY` calls another function; `ldr r0, _XXXXXXXX` reads a constant.
+{draft}
 
 2. Read the three functions already matched, they are the house style:
    `src/funcs/sub_0800AF94.c`, `src/funcs/sub_08004750.c`, `src/funcs/sub_08007604.c`.
@@ -88,7 +89,14 @@ def main():
     if not asm.exists():
         sys.exit('%s is missing: run scripts/disasm.sh first' % asm)
 
-    text = RECIPE.format(name=a.name, addr='0x%08X' % addr)
+    # Ghidra draft (Y5 tooling, [019]): a reading aid, never a source to copy.
+    draft_c = ROOT / 'private' / 'ghidra' / (a.name + '.c')
+    if draft_c.exists():
+        draft = """\n   A decompiler DRAFT of this function is at `%s` (absolute path).\n   Read it to understand the logic -- its types, loops and branch conditions are useful. It is NOT\n   matching C: pasting it into your file will fail the check. Use the disassembly as the truth for\n   every instruction and the draft only as a hint about what the code is doing.""" % draft_c.as_posix()
+    else:
+        draft = ''
+
+    text = RECIPE.format(name=a.name, addr='0x%08X' % addr, draft=draft)
     if len(text) > 6000:
         sys.exit('recipe is %d chars, make_job.py allows 6000' % len(text))
 
