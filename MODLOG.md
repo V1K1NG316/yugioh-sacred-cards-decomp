@@ -466,3 +466,4 @@ ORIGINAL + BASEROM `OK` (exit 0); `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp
 29 s); `PY tools/progress.py` → `23/1977 functions matched (1.16%)`; `git check-ignore -q tools/cost_index.py` →
 exit 1 (tracked) and `git check-ignore -q private/tmp/y5-attempts/sub_080066D0.c` → exit 0 (ignored).
 - 2026-10-12 18:48: Matter_Scatter approved downloading ghidra-mcp (github.com/bethington/ghidra-mcp, Apache-2.0) for agent-driven Ghidra; portable under private/tools/.
+- 2026-10-12 18:50: Matter_Scatter approved adding a ghidra-mcp entry to Hermes global config (C:/Users/USER/AppData/Local/hermes/config.yaml, mcp_servers).
