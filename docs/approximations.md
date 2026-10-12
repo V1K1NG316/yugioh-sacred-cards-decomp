@@ -213,3 +213,11 @@ Every labelled guess (A1..An) and where it is marked.
   pool A = the opponent's themed cards, pool B = occasional rare card from the 885-card list (~50%), pool C =
   shared special case (49-id set). To verify: find the routine that fills 3 × N reward slots with
   `sub_0801649C` / `sub_08016768` rolls, and the post-duel 3-pack screen. Not yet verified.
+
+- **A-pack1 update (Claude, 2026-10-12 19:54, community sources):** Sacred Cards uses the **ante** rule (winner takes the loser's
+  wagered card) and gives **random drops from each opponent's loot table "as low as 1/2048"** plus a fixed card
+  per 10 wins against an opponent (Let's Play Archive, Update 05). 1/2048 = one slot of the 0..2047 roll →
+  pool A (+0x08) is most likely the per-opponent **loot table**. No source mentions a 3-pack choice screen (may be
+  another Yu-Gi-Oh title). Speedrun notes (TASVideos 17496): fixed RNG seed at new game; RNG advances on deck
+  shuffle, NPC movement, ante wins, monster destruction; draw-order logic not found by runners. To verify in code:
+  the post-duel reward routine and a 10-win fixed-reward table.
