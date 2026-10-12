@@ -112,3 +112,41 @@
   `hash_rom.py` ORIGINAL+BASEROM OK; new files check-ignore = 1 (tracked).
 - Note: `docs/credits.md` was the one file in the repo with mixed LF/CRLF endings; it is now
   uniformly CRLF like the rest of `docs/`.
+
+## 2026-10-12 06:50 — Y3 part 2: true function list, per-function files, data as `.incbin` (DeepSeek, branch `deepseek/y3-split`)
+
+- New tools: `tools/functions_from_rom_s.py` (refresh `config/functions.csv` from the generated asm),
+  `tools/split_disasm.py` (one file per function + data files + the `.include` list that is
+  `private/asm/rom.s`). Changed: `tools/post_disasm.py` (`.byte` runs → `.incbin`, with address
+  tracking that must land on the sentinel), `scripts/disasm.sh` (fixpoint loop + split step),
+  `Makefile` (the assembly now depends on `private/asm/funcs/*.s` and `private/asm/data/*.s`),
+  `tools/test_functions_csv.py` (check 9: the CSV must equal the asm's function starts; MIN_ROWS
+  1900; `source=disasm` rule), `tools/code_map.py` (reports the instruction/`.incbin` split; the old
+  extent-sum report became meaningless once extents tile the ROM), `docs/rom-map.md` §4/§5,
+  `docs/approximations.md` A5 (rewritten) + A8 (new).
+- Fixpoint, from scratch with the Y2 list of 1034 rows
+  (`wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/disasm.sh`):
+  `functions.csv: 1034 rows` → `functions_from_rom_s: 1977 functions (thumb 1973, arm 4) / kept 1034,
+  new 943 (source=disasm), stale 0` → `loop 1: function list changed -> 1977 rows, disassembling
+  again` → `loop 2: function list stable at 1977 rows` → `split_disasm: 1977 function files, 253
+  data files`. exit 0. The 4 ARM rows are the startup stub plus `sub_08036C74`, found by the loop.
+- `wsl ... make compare` → `private/build/yugioh.gba: OK`, exit 0;
+  `sha1sum private/build/yugioh.gba` = `d3710031520d9cdae70d870c60b1667285fe5230`.
+- `PY tools/test_functions_csv.py` → `fixpoint: the CSV equals the 1977 function starts of
+  rom_full.s` / `rows: 1977  thumb: 1973  arm: 4` / `ptr_prologue rows: 681  bl_thumb rows: 347` /
+  `ALL CHECKS PASSED`, exit 0.
+- Byte split (same as part 1, only the representation changed): `.incbin` 16565922 (98.74%),
+  `.4byte` 30372 (7593 words: 626 jump-table words + 6967 literal-pool words), instructions 177622,
+  `.align` padding 3300; `non-.incbin bytes: 211298` from `post_disasm.py`. `rom_full.s` is 1.84 MB /
+  103897 lines where part 1's `rom.s` was 107 MB / 1139204 lines; `private/asm` is 7.8 MB total
+  (`rom_raw.s` is now deleted after `post_disasm`).
+- Falsification (C4): `movs r0, #1` → `#2` in `private/asm/funcs/main.s` → `make compare` rebuilt
+  (the wildcard dependency works) and `private/build/yugioh.gba: FAILED` / `1 computed checksum did
+  NOT match`, exit 2; restored → `OK`, exit 0.
+- Determinism: `split_disasm.py` run twice leaves `sha1(private/asm/rom.s)` =
+  `cec316d594834af70eed166413cee71c27f41fa4` unchanged; `sha1(config/functions.csv)` =
+  `4f5975431d609ff9e1e7bf56d21f73f88ced6b56`.
+- Gates: `guard_repo.py` 48 files, 0 failures; `hash_rom.py` ORIGINAL+BASEROM OK; both new tools
+  `git check-ignore` = 1 (tracked).
+- Finding for Y2/Y3: the disassembler emits no label at or above `0x0803B61C`, so 16533984 bytes
+  (98.6% of the ROM) are one unlabelled data run — recorded as open (A8), not as "no code there".
