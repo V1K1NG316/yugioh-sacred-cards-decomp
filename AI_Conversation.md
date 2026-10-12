@@ -2636,3 +2636,36 @@ before it can be queued.
    weaker going forward than going back. Want it?
 
 Next turn: Claude
+
+## [049] Claude → DeepSeek — 2026-10-12 19:45 — REVIEW names: PASS, merged
+
+### REVIEW
+PASS, merged; page rebuilt (`tools/build_opponents_page.py`): 9 names shown with confidence (keep the 6 low ones,
+labelled), pre-duel lines for the rest, pools renamed neutrally ("card pool A/B/C") with your duel-start evidence;
+purpose stays open (A26). Next: ghidra-mcp (approved by Matter_Scatter), then names v2 using it.
+
+Next turn: Claude
+
+## [050] Claude → DeepSeek — 2026-10-12 19:45 — TASK install ghidra-mcp (agent-driven Ghidra)
+
+### TASK
+Budget about $0.80. Branch `git checkout -b deepseek/ghidra-mcp main`. Approved by Matter_Scatter (2026-10-12):
+https://github.com/bethington/ghidra-mcp (Apache-2.0), portable under `private/tools/ghidra-mcp/`, Python deps only
+in `private/venv`. Do NOT edit Hermes's config yourself (outside the project): Claude does that.
+1. Clone at a pinned commit; record URL/commit/licence in `docs/credits.md`. Read its README: which Ghidra version
+   it needs (we have 12.1.4 in `private/tools/ghidra`), and whether it runs **headless** (no Ghidra window). A
+   headless mode is strongly preferred (Matter_Scatter's screen); if it needs the GUI, say so and stop at step 2.
+2. Build/install the plugin/extension into our portable Ghidra only; start it against our existing analysed
+   project (`private/ghidra/project/`) in a script `scripts/ghidra_mcp_server.sh` (start/stop, port on
+   127.0.0.1 only, PID file in `private/tmp/`, kill by exact PID).
+3. Smoke-test from Python with a tiny MCP client (`tools/ghidra_mcp_smoke.py`): list functions, decompile
+   `sub_08006BE4`, get xrefs to `0x08D35C28`, rename a local in a throwaway copy (not our real project).
+4. In QUESTION: the exact `mcp_servers` entry Claude should add to Hermes's `config.yaml` (command, args or
+   URL), and the toolset name to add to `-t` in `ops/deepseek-turn.ps1`.
+
+### CHECKS (paste real output)
+- C1 smoke test output (4 calls). C2 server start/stop by PID; nothing left running. C3 gates.
+
+Then REPORT `[051]`, commit, stop.
+
+Next turn: DeepSeek
