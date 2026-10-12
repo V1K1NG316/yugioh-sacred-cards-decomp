@@ -20,7 +20,7 @@ ROM = ROOT / 'private' / 'baserom.gba'
 OUT = ROOT / 'private' / 'extracted' / 'opponents.html'
 NAMES_TSV = ROOT / 'private' / 'extracted' / 'duel_names.tsv'
 B = 0x08000000
-LISTS = (('Drop list A', 8, 2048), ('Drop list B (rare)', 12, 30000), ('Drop list C', 16, 2048))
+LISTS = (('Card pool A (this duel)', 8, 2048), ('Card pool B (rare, shared)', 12, 30000), ('Card pool C (shared)', 16, 2048))
 
 
 def main():
@@ -56,10 +56,18 @@ def main():
 
     names = {}
     if NAMES_TSV.exists():
-        for row in NAMES_TSV.read_text(encoding='utf-8').splitlines()[1:]:
+        rows = NAMES_TSV.read_text(encoding='utf-8').splitlines()
+        col = {h: i for i, h in enumerate(rows[0].split('\t'))}
+        for row in rows[1:]:
             f = row.split('\t')
-            if len(f) >= 2 and f[1].strip():
-                names[int(f[0])] = {'name': f[1].strip(), 'conf': f[3].strip() if len(f) > 3 else ''}
+            get = lambda h: f[col[h]].strip() if h in col and col[h] < len(f) else ''
+            entry = {}
+            if get('name'):
+                entry.update(name=get('name'), conf=get('confidence'))
+            if get('pre_duel_line'):
+                entry['line'] = ' '.join(get('pre_duel_line').replace('^', ' ').replace('|', ' ').split())
+            if entry:
+                names[int(f[0])] = entry
 
     def read_list(p, roll):
         # (card id, cumulative weight) pairs; a leading (0, 0) entry is an empty slot, card 0 is never a drop

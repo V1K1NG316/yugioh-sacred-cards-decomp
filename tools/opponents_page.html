@@ -38,7 +38,7 @@
 <body>
 <header>
   <h1>Yu-Gi-Oh! The Sacred Cards: opponents</h1>
-  <p class="sub">Decks and drop chances for all 200 duel records, read from the game's own tables. Private datamine; nothing here is shared.</p>
+  <p class="sub">Decks and card pools for every duel, read from the game's own tables. Private datamine; nothing here is shared.</p>
   <div class="tools">
     <input id="q" type="search" placeholder="Search an opponent or a card (e.g. Keith, Blue-Eyes)">
     <label class="chk"><input id="named" type="checkbox"> only named opponents</label>
@@ -57,11 +57,12 @@ function listTable(items) {
   for (const [id, p] of items) h += '<tr><td>' + cardCell(id) + '</td><td class="n pct"><i style="width:' + Math.min(100, p * 4) + '%"></i><span>' + (p < 0.1 ? p.toFixed(3) : p.toFixed(2)) + '%</span></td></tr>';
   return h + '</table>';
 }
+function sharedNo(i) { let n = 0; for (const [j, s] of Object.entries(DATA.shared)) { if (!s.placeholder) n++; if (j == i) return n; } return n; }
 function sharedSection() {
   let h = '';
   for (const [i, s] of Object.entries(DATA.shared)) {
     if (s.placeholder) continue;
-    h += '<details><summary><span class="dn">Shared list #' + (+i + 1) + '</span><span class="id">' + s.items.length + ' cards · used by ' + s.n + ' duels</span></summary><div class="body"><div>' + listTable(s.items) + '</div></div></details>';
+    h += '<details><summary><span class="dn">Shared pool #' + sharedNo(i) + '</span><span class="id">' + s.items.length + ' cards · used by ' + s.n + ' duels</span></summary><div class="body"><div>' + listTable(s.items) + '</div></div></details>';
   }
   return h;
 }
@@ -72,23 +73,24 @@ function render() {
     if (onlyNamed && !du.name) continue;
     const label = du.name || ('Duel ' + du.id);
     const allCards = du.deck.map(x => x[0]).concat(...du.lists.filter(l => l.items).map(l => l.items.map(i => i[0])));
-    if (q && !label.toLowerCase().includes(q) && !allCards.some(id => cardName(id).toLowerCase().includes(q))) continue;
+    if (q && !label.toLowerCase().includes(q) && !(du.line || '').toLowerCase().includes(q) && !allCards.some(id => cardName(id).toLowerCase().includes(q))) continue;
     let h = '<details' + (q ? ' open' : '') + '><summary><span class="dn">' + esc(label) + '</span><span class="id">duel #' + du.id + '</span>';
     if (du.conf) h += '<span class="tag">name: ' + esc(du.conf) + ' confidence</span>';
+    if (du.line) h += '<span class="id" style="flex-basis:100%">“' + esc(du.line.length > 140 ? du.line.slice(0, 140) + '…' : du.line) + '”</span>';
     h += '</summary><div class="body"><div><h3>Deck (40 cards)</h3><table>';
     for (const [id, n] of du.deck) { const c = C[id] || {}; h += '<tr><td class="n">' + n + '×</td><td>' + cardCell(id) + '</td><td class="n">' + (c.atk == null ? (c.type || '') : c.atk + '/' + c.def) + '</td></tr>'; }
     h += '</table></div>';
     for (const l of du.lists) {
       if (l.shared !== undefined) {
         const s = DATA.shared[l.shared];
-        h += '<div><h3>' + esc(l.label) + '</h3><p class="sub">' + (s.placeholder ? 'Placeholder (' + esc(cardName(s.items[0][0])) + ' only), shared by ' + s.n + ' duels: probably not used for this duel.' : 'Shared list #' + (l.shared + 1) + ' (' + s.items.length + ' cards, used by ' + s.n + ' duels): see the top of the page.') + '</p></div>';
+        h += '<div><h3>' + esc(l.label) + '</h3><p class="sub">' + (s.placeholder ? 'Placeholder (' + esc(cardName(s.items[0][0])) + ' only), shared by ' + s.n + ' duels: probably not used for this duel.' : 'Shared pool #' + sharedNo(l.shared) + ' (' + s.items.length + ' cards, used by ' + s.n + ' duels): see the top of the page.') + '</p></div>';
         continue;
       }
       h += '<div><h3>' + esc(l.label) + ' · ' + l.items.length + ' cards</h3>' + listTable(l.items) + '</div>';
     }
     out.push(h + '</div></details>');
   }
-  list.innerHTML = (q ? '' : sharedSection()) + out.join('') + '<p class="note">Chance = the card\'s share of the game\'s roll (0–2047, or 0–29999 for the rare list). Which list a duel uses (e.g. by win quality) is still being confirmed. Names come from each duel\'s own dialogue; unnamed duels show their number.</p>';
+  list.innerHTML = (q ? '' : sharedSection()) + out.join('') + '<p class="note">Each pool is a weighted card list: % = the card\'s share of the game\'s roll (0–2047, or 0–29999 for pool B). The game reads these pools when a duel starts (pool A, or pool C when the card id is in a 49-id set; pool B half the time), so they may decide the opponent\'s cards rather than your rewards: their exact purpose is still being confirmed. Names come from the duel\'s own dialogue (confidence shown); otherwise the opponent\'s pre-duel line is quoted.</p>';
 }
 document.addEventListener('mousemove', e => {
   const t = e.target.closest && e.target.closest('.card');
