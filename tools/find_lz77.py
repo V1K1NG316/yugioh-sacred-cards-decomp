@@ -78,6 +78,9 @@ def main():
 
     out_dir = worktree / 'private' / 'extracted' / 'lz77'
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Start clean (spec step 4): stale .bin files from an older run must not survive.
+    for old in out_dir.glob('*.bin'):
+        old.unlink()
 
     total_out = 0
     total_in = 0
