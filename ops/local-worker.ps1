@@ -49,6 +49,9 @@ while ($true) {
          "then write $wt\RESULT.md. Every message must contain a tool call until RESULT.md is written."
     $nudge = "Continue job $id. Your last message had no tool call. Make the next tool call now; you are done only " +
              "when the check passes, your work is committed and $wt\RESULT.md is written."
+    # Snapshot the main checkout: a job must not leave files there (the model sometimes writes to
+    # D:\Yugioh_DeComp_V2\src instead of its worktree).
+    $mainBefore = @(git -C $Repo status --porcelain --untracked-files=all 2>$null)
     $t0 = Get-UnixNow
     & $Hermes -z $p -m $LocalModel -t terminal,file,todo --in $wt 2>&1 | Out-File $log -Encoding utf8
     $sid = Get-NewestSession $wt $t0
@@ -63,6 +66,15 @@ while ($true) {
                Where-Object { $_ -and $_ -ne 'RESULT.md' } | Sort-Object -Unique
     $allowed = @($job.allowed_paths)
     $bad     = @($changed | Where-Object { $f = $_; -not ($allowed | Where-Object { $f -like $_ }) })
+    # Only the job's own allowed paths count as strays (DeepSeek may be creating other files there).
+    $strays  = @(git -C $Repo status --porcelain --untracked-files=all 2>$null | Where-Object {
+                   $l = $_; $mainBefore -notcontains $l -and $l -like '`?`? *' -and
+                   ($allowed | Where-Object { $l.Substring(3) -like $_ }) })
+    foreach ($s in $strays) {
+        $p = $s.Substring(3); $q = "$Repo\private\quarantine"; New-Item -ItemType Directory -Force $q | Out-Null
+        Move-Item -LiteralPath "$Repo\$p" "$q\$id-$($p -replace '[\\/]', '_')" -Force
+        $bad += "MAIN:$p"
+    }
     $dirty   = @(git -C $wt status --porcelain 2>$null | Where-Object { $_ -notmatch 'RESULT.md|JOB.json' })
     $guard   = & $Py -I "$Repo\tools\guard_repo.py" --repo $wt 2>&1 | Out-String; $guardOk = ($LASTEXITCODE -eq 0)
     & $Py -I "$Repo\tools\hash_rom.py" | Out-Null

@@ -4,7 +4,7 @@
 #
 # For every src/funcs/<name>.c it compiles the C with agbcc (scripts/match_func.sh) and rewrites
 # private/asm/funcs/<name>.s -- the generated disassembly of that one function -- with the
-# compiled code, followed by `.space` zero padding up to the extent the ROM gives the function
+# compiled code, followed by the ROM's own bytes (`.incbin`) up to the extent the ROM gives the function
 # (config/functions.csv `size` = distance to the next start, approximation A5). gcc's own leading
 # `.align` is dropped: inside rom.s the byte stream is already positioned, and an extra align
 # would insert padding the ROM does not have.
@@ -61,7 +61,7 @@ for c in src/funcs/*.c; do
       | sed -E -e "s/^\.gcc2_compiled\.:/.gcc2_compiled_$name:/" \
                -e "s/\.L([0-9A-Za-z_]+)/.L${name}_\1/g"
     if [ "$SLACK" -gt 0 ]; then
-      printf '	.space %s, 0	@ %s bytes past the compiled function (A5 extent)\n' "$SLACK" "$SLACK"
+      printf '	.incbin "private/baserom.gba", %d, %s	@ %s ROM bytes past the compiled function (A5 extent; may hold unlisted code)\n' "$(( addr - 0x08000000 + L1 ))" "$SLACK" "$SLACK"
     fi
     echo "	.syntax unified"
   } > "private/asm/funcs/$name.s"
@@ -86,7 +86,7 @@ for c in src/funcs/*.c; do
     exit 1
   fi
 
-  printf 'build_matched: %-16s %s at %s: %s bytes of C + %s of zero tail = %s\n' \
+  printf 'build_matched: %-16s %s at %s: %s bytes of C + %s of ROM tail = %s\n' \
       "$name" "$c" "$addr" "$L1" "$SLACK" "$EXTENT"
   MATCHED=$(( MATCHED + 1 ))
   BYTES=$(( BYTES + L1 ))
