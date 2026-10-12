@@ -73,6 +73,10 @@ style to copy, #4 is the only test that counts.
      differing lines marked. It builds exactly what the check builds, so the two never disagree.
    - The Ghidra draft uses `in_lr`, `undefined4`, `in_stack_...` and `SUB84`/`ZEXT` calls: those
      are Ghidra's own bookkeeping, not part of the function. Ignore them and trust the asm.
+   - ARGUMENT TYPES: in the asm, `lsls rN, rN, #0x18` then `lsrs ... #0x18` (or Ghidra writing
+     `param & 0xff`) means that argument is a `u8`; `#0x10` / `& 0xffff` means `u16`. Declare the
+     argument with that narrow type and do NOT write the `& 0xff` mask yourself: agbcc adds the shifts.
+     Use real array indexing (`table[i]` with the right element type) instead of `*(u16 *)(base + i * 2)`.
    - Do not run the permuter (a randomized C search) yourself: that is Hermes' job with
      `tools/permute_func.sh`, and a search score is not evidence. Your evidence is step 4.
    - If agbcc reports an error instead, the C does not compile; fix that first.
