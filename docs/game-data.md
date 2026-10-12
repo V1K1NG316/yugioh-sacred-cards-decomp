@@ -241,10 +241,11 @@ Baby Dragon "Earth", Red-Eyes and Summoned Skull "Fiend" (A15).
   and compare with the dumps). mGBA here is `D:\Custom_Pokemon\private\tools\mGBA\mGBA-0.10.5-win64`, run from a
   copy under `private/tmp/` so nothing is written next to the original.
 
-## Card Cost and the Duelist-Level gate (verified, DeepSeek 2026-10-12, Y4 part 4)
+## Card Cost and the Duelist-Level gate (verified, DeepSeek 2026-10-12, Y4 part 4; index fixed Y5 [039])
 Closes the doubt in `[033]`. The card row's **Cost** is a 32-bit value from the table `0x08088DF0`
-(entry n = card n; entry 0 unused): Blue-Eyes White Dragon 95, Mystical Elf 319, Hitotsu-Me Giant 121,
-Dark Magician 183, Red-Eyes B. Dragon 207, Celtic Guardian 260, Blue-Eyes Ultimate Dragon 20, Dragon Piper 86.
+(entry = card id; entry 0 unused): Blue-Eyes White Dragon 95, Mystical Elf 319, Hitotsu-Me Giant 121,
+Dark Magician 20, Red-Eyes B. Dragon 12, Celtic Guardian 161, Blue-Eyes Ultimate Dragon 255,
+Dragon Piper 260, Labyrinth Wall 585.
 `sub_08006BE4` (the row loader) stores it at `struct+0x0C` and then, at `0x08006C5E`..`0x08006C6A`:
 ```
 bl 0x8014110            ; returns the player's Duelist Level
@@ -256,9 +257,21 @@ str r0,[r5,#8]          ; struct+0x08 = description pointer
 ```
 `0x08D30F40` decodes (with the text tables of Y4 part 2) to **"Your Duelist Level is below the Cost. This
 can't be put in the Deck."** So the column is a plain deck Cost used **unscaled**, compared directly against the
-Duelist Level, and the odd-looking values (BEWD 95 vs Mystical Elf 319, Dark Magician 183 vs Red-Eyes 207 - the
-`[033]` note quoted 12 and 20) are the game's own numbers, not a misread column. The values above are read
-straight from the table with the loader's own indexing (1-based, u32).
+Duelist Level.
+
+**Index (settled in `[039]`, reproducible with `PY tools/cost_index.py`)**: `sub_08006BE4` takes the card id in
+`r0`, zero-extends it into **r4**, and indexes *every* column with that one register -- ATK `u16 @ 0x080886E6 +
+2*r4`, DEF `+2*r4` from `0x08087FDC`, Cost `u32 @ 0x08088DF0 + 4*r4`, the byte rows `+r4`, and the name pointer via
+`sub_080073E4` = `*(u32 *)(0x08D310E0 + 4*r4)`. Name index, stat index and card id are therefore the same number:
+id 0 is the dummy row (ATK/DEF `0xFFFF`, Cost 0, name = the empty string) and id 1 is Blue-Eyes White Dragon
+(3000/2500, level 8, Cost 95). Each table is exactly **901 entries** (DEF ends where ATK starts, ATK where Cost
+starts, Cost where the byte rows start, and the byte rows are 901 bytes apart), which is what a 0-based dummy plus
+900 cards needs. So the rule is `+4*id` with id = the card number, as `tools/extract_card_stats.py` (J0005) and
+`[036]`'s first three values use. The values `[036]` printed for Dark Magician (183), Red-Eyes B. Dragon (207),
+Celtic Guardian (260) and Dragon Piper (86) are the **previous** entry's, i.e. cards 34, 81, 40 and 39; and the
+"Blue-Eyes Ultimate Dragon 20" it printed is Dark Magician's Cost (`+4*35`). The current values are in the list
+above.
+
 
 ## Card 40 "Dragon Piper" description (checked, DeepSeek 2026-10-12, Y4 part 4)
 No off-by-one. Cards 38..42, name then description, decoded with the Y4 part 2 text decoder:

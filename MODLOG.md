@@ -410,3 +410,58 @@ composed-image rule. Break tests `bash private/tmp/break_card_images2.sh`:
 === restored good reference (must pass again)    ALL CHECKS PASSED                                   exit=0
 ```
 - 2026-10-12 15:58: Matter_Scatter lifted the overnight $10 cap (awake and watching); the $30 project stop still applies.
+
+## 2026-10-12 16:12 — Y5 probe: cost-table index settled, two 100+-instruction functions attempted (DeepSeek, branch `deepseek/y5-large`)
+Cost column, the `[037]` dispute (is `w_08088DF0` indexed `+4*k` or `+4*(k-1)`?): new `tools/cost_index.py` settles
+it from the loader's own registers. `sub_08006BE4` @ 0x08006BE4 zero-extends its argument into **r4**
+(`lsls r4,r4,#0x10; lsrs r4,r4,#0x10`) and indexes *every* column with that one register — `u16 @ 0x080886E6 +
+2*r4` (ATK), `u16 @ 0x08087FDC + 2*r4` (DEF), `u32 @ 0x08088DF0 + 4*r4` (Cost), the byte rows `+r4`, and
+`sub_080073E4(r4)` = `*(u32 *)(0x08D310E0 + 4*r4)` for the card-name pointer. So name index = stat index = card id,
+**1-based with entry 0 a dummy** (ATK/DEF `0xFFFF`, Cost 0, empty name), and the answer is **`+4*k`** — the same
+rule `tools/extract_card_stats.py` (J0005) uses, so no fix is needed there. Command `PY tools/cost_index.py`, exit 0:
+```
+  id   0                             atk=65535 def=65535 W=    0 lvl=  0
+  id   1  Blue-Eyes White Dragon     atk= 3000 def= 2500 W=   95 lvl=  8
+  id   2  Mystical Elf               atk=  800 def= 2000 W=  319 lvl=  4
+  id  35  Dark Magician              atk= 2500 def= 2100 W=   20 lvl=  7
+  id  82  Red-Eyes B. Dragon         atk= 2400 def= 2000 W=   12 lvl=  7
+  id 366  Labyrinth Wall             atk=    0 def= 3000 W=  585 lvl=  5
+  Blue-Eyes White Dragon id   1 -> +4*id =    95 , +4*(id-1) =     0
+  Dark Magician          id  35 -> +4*id =    20 , +4*(id-1) =   183
+  Red-Eyes B. Dragon     id  82 -> +4*id =    12 , +4*(id-1) =   207
+  Labyrinth Wall         id 366 -> +4*id =   585 , +4*(id-1) =   255
+  DEF + 2*901 -> 0x080886E6 OK / ATK + 2*901 -> 0x08088DF0 OK
+  W   + 4*901 -> 0x08089C04 OK / byte0 + 901 -> 0x08089F89 OK
+  RESULT: the loader index is +4*id with id = the card number 1..900 (entry 0 unused)
+```
+`docs/game-data.md` "Card Cost and the Duelist-Level gate" carried four wrong values and now carries the corrected
+list (Dark Magician 20, Red-Eyes B. Dragon 12, Celtic Guardian 161, Blue-Eyes Ultimate Dragon 255 — the "20" it
+printed is Dark Magician's — Dragon Piper 260, Labyrinth Wall 585) plus an index paragraph. The `[036]` section
+above this one repeats the old list (183/207/260/86 are entries 34/81/40/39, i.e. the previous card); this entry
+supersedes it.
+
+Matching C at 100+ instructions (TASK `[038]` item 2) — both attempted, neither matched, nothing committed for them:
+- `sub_080066D0` (232 B, ~106 instructions): transcribed from `private/asm/rom_full.s` into a C file with named
+  structs (`Unk_02023120`, `Unk_02023140`, `Unk_02023160`+0xF0, `Unk_02023270`+0x14/0x28, `Unk_0202347C`,
+  `Unk_02020B00`) — struct fields are what make agbcc pool the bare symbol and use a displacement; raw `u8 *` math
+  folds `+0x28` into the pool (measured). Four builds, `PY tools/match_func.py sub_080066D0`:
+  `FAIL ... first difference at +0xA (rom 81, ours 06); 188/232 bytes differ`. Best build is 224 B against the ROM's
+  232; of 106 instruction lines 59 are byte-identical, 32 differ only in register names, 11 in operands, 4 are
+  ROM-only; the literal pool is identical (6 words, same order). The whole gap is gcc 2.9's register allocation
+  (the ROM keeps the constant 1 in r7, the long-lived bases in sl/r9, arg0 in r8 and spills arg1 to the stack).
+  C shapes tried without moving it: named `u8` locals for both params, a `tab` pointer variable, struct fields vs
+  raw pointer math, a named constant variable.
+- `sub_08012B70` (extent 260 = 258 B code + 2 B alignment, ~120 instructions): one transcription, two 12-iteration
+  loops. `PY tools/match_func.py sub_08012B70` → `FAIL ... first difference at +0x2 (rom 57, ours 4f); 207/220 bytes
+  differ` (our build 220 B). Both loops' instruction sequences match the ROM's one for one; again only the
+  allocation differs.
+- Kept out of the tree (an unmatched `src/funcs/*.c` would break `make compare`): `private/tmp/y5-attempts/`.
+- `tools/diff_func.py sub_08012B70` refuses the function (`rom_func_obj: sub_08012B70: the assembled ROM asm is NOT
+  the ROM's bytes`) because the A5 extent ends with 2 bytes of `mov r0,r0` alignment padding; `sub_080066D0` (no
+  trailing padding) diffs fine. Reported to Claude as a small tool fix.
+
+Gates: `PY tools/guard_repo.py` → `guard: 109 files checked, 0 failures` (exit 0); `PY tools/hash_rom.py` →
+ORIGINAL + BASEROM `OK` (exit 0); `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- make compare` →
+`build_matched: 23 C function(s), 230 bytes from C linked into the ROM` … `private/build/yugioh.gba: OK` (exit 0,
+29 s); `PY tools/progress.py` → `23/1977 functions matched (1.16%)`; `git check-ignore -q tools/cost_index.py` →
+exit 1 (tracked) and `git check-ignore -q private/tmp/y5-attempts/sub_080066D0.c` → exit 0 (ignored).
