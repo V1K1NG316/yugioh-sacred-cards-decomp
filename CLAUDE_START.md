@@ -67,6 +67,19 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   Matter_Scatter's OK; prefer TaskStop for things you started.
 - V1 (`D:\yugioh_DeComp`) is a read-only reference.
 
+## Lessons from V2 day 1 (2026-10-12)
+- **Attack every check with wrong work before trusting it.** Found this way: match harness passed an `asm()` blob
+  with 0 bytes compared; a data-section rule that never fired (case bug); a ROM-wide BL test any address passed.
+- **Main checkout belongs to DeepSeek during its turn.** Edit `main` in `private/worktrees/claude-main`; to build
+  `main` itself, `git checkout --detach main` in the main checkout between DeepSeek turns (build scripts use that path).
+- **Local model failure modes:** loops for hours on one wrong idea (J0012: void vs return; now a 30-min attempt
+  deadline); writes copies into `D:\Yugioh_DeComp_V2\src` (worker now fails + quarantines); once wrote its own
+  check and `git add -f` game data (guard + allowed-paths caught it). Recipes must state rules it might fight.
+- **Job checks must recompute the whole expected output and compare exactly**; completeness gaps were the usual
+  weakness of DeepSeek-written checks.
+- Decomp critics: run harness calls one at a time until the per-run build dir fix (TASK [022]) is merged.
+- Times: `T=$(date ...)` then `$T`; never type a time.
+
 ## Setup state (verified by the previous Claude session, 2026-10-12 05:48)
 - Hermes updated to v0.21.7 (backup in `C:\Users\USER\AppData\Local\hermes_backups\2026-10-12_0536`).
   Smoke tests after the update: local `qwen36-agent` 44 s, DeepSeek Flash 9 s, both correct.
