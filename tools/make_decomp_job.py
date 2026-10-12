@@ -99,6 +99,8 @@ def main():
     ap.add_argument('--dry-run', action='store_true',
                     help='print the recipe and the make_job.py command; queue nothing')
     ap.add_argument('--max-attempts', type=int, default=2)
+    ap.add_argument('--pilot-draft', metavar='C_FILE',
+                    help='pilot mode: the job starts from this draft C (written by DeepSeek) and only polishes it')
     a = ap.parse_args()
 
     rows = {n: (addr, ext, mode) for n, addr, ext, mode in romcode.read_functions(ROOT)}
@@ -121,6 +123,19 @@ def main():
         draft = ''
 
     text = RECIPE.format(name=a.name, addr='0x%08X' % addr, draft=draft)
+    if a.pilot_draft:
+        # Pilot (Matter_Scatter, 2026-10-12): DeepSeek thinks, the local model types, tests and polishes.
+        pd = Path(a.pilot_draft).resolve()
+        if not pd.exists():
+            sys.exit('pilot draft %s does not exist' % pd)
+        text = ("START HERE (pilot job). A stronger model already wrote a draft of this function:\n"
+                "`%s` (absolute path, read only).\n"
+                "1. Copy that draft EXACTLY into your file `src/funcs/%s.c` (same text).\n"
+                "2. Run the test (step 4 below). If it prints MATCH, commit (step 6) and write RESULT.md. Done.\n"
+                "3. If it prints FAIL, make only SMALL fixes that the diff points at: a type (u8/u16/s32),\n"
+                "   the order of two statements, a cast, a signed/unsigned change. Do NOT rewrite the logic\n"
+                "   or start over. Re-test after each change. Stop after 8 tries and report what still differs.\n"
+                "The full rules follow; they still apply.\n\n" % (pd.as_posix(), a.name)) + text
     if len(text) > 6000:
         sys.exit('recipe is %d chars, make_job.py allows 6000' % len(text))
 
@@ -129,13 +144,13 @@ def main():
     draft.write_text(text, encoding='utf-8', newline='\n')
 
     cmd = [PY, str(ROOT / 'tools' / 'make_job.py'),
-           '--title', 'Decompile %s (0x%08X)' % (a.name, addr),
+           '--title', ('[pilot] ' if a.pilot_draft else '') + 'Decompile %s (0x%08X)' % (a.name, addr),
            '--kind', 'decompile',
            '--allowed', 'src/funcs/%s.c' % a.name,
            '--check', 'PY tools/match_func.py %s' % a.name,
            '--instructions-file', str(draft),
            '--max-attempts', str(a.max_attempts),
-           '--created-by', 'deepseek']
+           '--created-by', 'pilot' if a.pilot_draft else 'deepseek']
 
     if a.dry_run:
         print('recipe written to %s\n' % draft)
