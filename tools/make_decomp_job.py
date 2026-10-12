@@ -117,7 +117,7 @@ def main():
 
     # Ghidra draft (Y5 tooling, [019]): a reading aid, never a source to copy.
     draft_c = ROOT / 'private' / 'ghidra' / (a.name + '.c')
-    if draft_c.exists():
+    if draft_c.exists() and not a.pilot_draft:  # pilot jobs get the DeepSeek draft instead
         draft = """\n   A decompiler DRAFT of this function is at `%s` (absolute path).\n   Read it to understand the logic -- its types, loops and branch conditions are useful. It is NOT\n   matching C: pasting it into your file will fail the check. Use the disassembly as the truth for\n   every instruction and the draft only as a hint about what the code is doing.""" % draft_c.as_posix()
     else:
         draft = ''
@@ -128,14 +128,11 @@ def main():
         pd = Path(a.pilot_draft).resolve()
         if not pd.exists():
             sys.exit('pilot draft %s does not exist' % pd)
-        text = ("START HERE (pilot job). A stronger model already wrote a draft of this function:\n"
-                "`%s` (absolute path, read only).\n"
-                "1. Copy that draft EXACTLY into your file `src/funcs/%s.c` (same text).\n"
-                "2. Run the test (step 4 below). If it prints MATCH, commit (step 6) and write RESULT.md. Done.\n"
-                "3. If it prints FAIL, make only SMALL fixes that the diff points at: a type (u8/u16/s32),\n"
-                "   the order of two statements, a cast, a signed/unsigned change. Do NOT rewrite the logic\n"
-                "   or start over. Re-test after each change. Stop after 8 tries and report what still differs.\n"
-                "The full rules follow; they still apply.\n\n" % (pd.as_posix(), a.name)) + text
+        text = ("START HERE (pilot job). A stronger model wrote a draft: `%s` (read only).\n"
+                "1. Copy it EXACTLY into `src/funcs/%s.c`. 2. Run the test (step 4). MATCH: commit (step 6), done.\n"
+                "3. FAIL: only SMALL fixes the diff points at (a type, the order of two statements, a cast,\n"
+                "   signed/unsigned). Never rewrite the logic. Re-test after each change; stop after 8 tries.\n"
+                "The full rules follow and still apply.\n\n" % (pd.as_posix(), a.name)) + text
     if len(text) > 6000:
         sys.exit('recipe is %d chars, make_job.py allows 6000' % len(text))
 
