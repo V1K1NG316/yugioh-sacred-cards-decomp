@@ -220,3 +220,13 @@ Baby Dragon "Earth", Red-Eyes and Summoned Skull "Fiend" (A15).
 ## Other leads (unverified)
 - THUMB→ARM thunks (`add rX, pc, #imm; bx rX`) in the code region: `0x08036C70`→`0x08036C74`,
   `0x08036D0A`→`0x08036D10`, `0x08036E96`→`0x08036E9C`. The last two ARM targets may be missing from the census.
+
+## Card passwords (found by Claude, 2026-10-12, from Matter_Scatter's hint)
+- **Table**: 8 bytes per card, one decimal digit per byte, card k at `0x08D4F43C + 8*k` (card 1 Blue-Eyes at
+  `0x08D4F444` = `08 09 06 03 01 01 03 09` = 89631139). Verified against the real passwords of cards 1, 22, 35,
+  58, 82 (Blue-Eyes 89631139, Summoned Skull 70781052, Dark Magician 46986414, Kuriboh 40640057, Red-Eyes 74677422).
+- Cards **1..831** have digits; slot 0 and cards **832..900** hold `0F 0F 0F 0F 0F 0F 0F 0E` (no password:
+  game-exclusive cards such as 866 Blue-Eyes Ultimate Dragon).
+- Base `0x08D4F43C` is referenced once, at `0x080341FC` (likely the password-entry screen).
+- Open (A-n pending): Matter_Scatter recalls a password purchase had a **cost**; test whether the code near
+  `0x080341FC` reads the `w_08088DF0` column (now called "cost") as the price.
