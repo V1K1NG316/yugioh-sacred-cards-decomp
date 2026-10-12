@@ -23,7 +23,7 @@ RECIPE = """Write one C file that compiles with agbcc to exactly the ROM's bytes
 `{name}` at {addr} in Yu-Gi-Oh! The Sacred Cards (GBA). #1 is the ROM's own disassembly, #2 is the
 style to copy, #4 is the only test that counts.
 
-1. Read the disassembly: `private/asm/funcs/{name}.s`.
+1. Read the disassembly: `D:/Yugioh_DeComp_V2/private/asm/funcs/{name}.s` (absolute path: your worktree has no private/asm).
    Lines starting with `@` are comments. `{name}: @ {addr}` is the function start. A line like
    `_08004758: .4byte 0x0201FCC0` is a literal pool word: the ROM loads that constant with
    `ldr rN, _08004758` and you must reproduce it without writing it yourself (see rule 3c).
@@ -45,6 +45,7 @@ style to copy, #4 is the only test that counts.
       Do NOT write `*(u8 *)(0x0201FCC0 + 3)`: agbcc folds that into one pool constant and the
       bytes come out different. For a plain store the raw form is right when the value is simple:
       `*(u16 *)0x02020B34 = 0;`
+   f. Plain C only: no `asm(...)`, no other functions or variables defined in the file; the check refuses them.
    d. A symbol whose name does not end in `_<8 hex digits>` cannot be resolved: the check refuses
       it. If you think you need one, stop and report instead.
    e. Match the shape: same number of instructions, same registers if you can, arguments read from
