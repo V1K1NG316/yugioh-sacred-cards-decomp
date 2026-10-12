@@ -134,3 +134,22 @@ Every labelled guess (A1..An) and where it is marked.
   `0x08D36328` look like pairs of card ids (record 0 all zero, record 1 = 38,364), i.e. it behaves like a
   "related card" table, but which game mechanic uses it (fusion? transformation? deck helper?) is a guess.
   Marked in `docs/game-data.md`. (2026-10-12, Y4 part 3)
+- **A19** - the card image composition is *measured*, but one part of it is still an interpretation: the game
+  writes image byte `i` of the 32x32 card image at destination byte `i + 768*(i//256)` (impulse test in
+  `scripts/emu_picture_map.py`). 768 bytes = 12 8bpp tiles, and calling the destination "a screen tile buffer
+  whose rows are 12 tiles wide, with the card in the first 4 tiles of four consecutive rows" fits the caller
+  (`0x02010400 + table[slot]*32`) but is not proved - only the byte arithmetic is. What matters for extraction
+  (frame + art at (4,2), 32x32 8bpp row-major tiles) is proved by the emulator anchors. (2026-10-12, Y4 part 4)
+- **A20** - the art's *appearance* is unverified. mGBA 0.10.5 has no scripted input and no headless screen path,
+  so the card screen was never displayed; the bytes the game produces were read out with its gdb stub instead.
+  The art data is high-frequency (22% of neighbouring pixels equal, RGB neighbour distance ~160/765), so the
+  24x24 decode looks dithered/noisy at 1:1 - the same appearance the Y4 part 3 review called "noise". Either the
+  art really is dithered at 24x24 (and the reviewer's upscale exaggerates it) or the picture index space maps to
+  the palette through something not yet found (a per-card palette does not exist: a scan for a 900-entry table
+  with constant 32-byte or 512-byte stride over the ROM found nothing). Check `private/tmp/card_composed_*.png`.
+  (2026-10-12, Y4 part 4)
+- **A21** - the palette address `0x089C54B0` is confirmed as the one the card screen copies (routine at
+  `0x08028130`: `CpuFastSet(0x089C54B0 -> 0x02000200, 160 words)`, SWI `0x0B`), but the palette RAM that the BG
+  ends up using (BG palette 0x05000000 and/or OBJ palette 0x05000200, and at which bank) was not read, because
+  that needs the card screen to be displayed. The 256-colour BGR555 reading and the `+0x1F`-scaled RGB
+  conversion are unchanged from Y4 part 3. (2026-10-12, Y4 part 4)

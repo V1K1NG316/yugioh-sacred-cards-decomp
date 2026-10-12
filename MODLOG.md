@@ -356,3 +356,56 @@ RESOLVED, new A13, A14), `docs/jobs.md` batch 4.
 - Card 1 (Blue-Eyes White Dragon) and card 35 (Dark Magician) decoded by hand: `private/tmp/card_001.png`,
   `private/tmp/card_035.png` (24x24, 8bpp, 37 / 70 palette indices, background `0x9f` = `#292929`).
 - Job recipe for the local worker: `private/jobs/drafts/card_images.md`; check must be merged on `main` first.
+
+## 2026-10-12 15:5x - Y4 part 4: card picture ground truth from mGBA (gdb stub), Cost column, card 40
+
+Tool: `D:\Custom_Pokemon\private\tools\mGBA\mGBA-0.10.5-win64`, run from a copy in `private/tmp/mgba`
+(nothing written next to the original) on a ROM copy `private/tmp/ygo.gba`, with `-g` (gdb stub, port 2345).
+Neither front end can run a Lua script from the command line (`--help` has no `--script`, no autoload setting
+in the binary), so the stub is driven by our own client: `scripts/mgba_gdb.py`. One client per launch - a
+second connection is refused, so every measurement is a fresh emulator (`scripts/emu_groundtruth.sh` does the
+launch-wait-run-kill cycle).
+
+Method: a small ARM trampoline in EWRAM calls the game's own routines (the stub cannot set Thumb state from a
+CPSR write, so the trampoline `bx`es to an odd address and passes arguments in r0-r3). Called:
+* `sub_08034AF8(dest, card)` - the card picture loader. Left in EWRAM: the decompressed picture at 0x02018800.
+* `sub_08034B40(dest, picture, frame)` - the composition, first with the real sources, then with synthetic
+  patterns (one 4-byte chunk index per chunk) to measure which source byte lands where.
+
+Results (all in `docs/game-data.md` "Card pictures"):
+- LZ77 decode verified against the game: 576 bytes at 0x02018800 for cards 1 and 2 byte-for-byte equal my
+  decode (`PY scripts/emu_anchors.py` -> `ANCHORS OK`, exit 0).
+- The composed card image is 32x32 8bpp, 8x8 tiles row-major, = frame asset + art in a 24x24 window at (4,2).
+  Every composed byte outside that window equals the frame asset: 448 of 448, cards 1 and 2. Written at
+  destination byte `i + 768*(i//256)`. 144 art chunks + 112 frame chunks = exactly 1024 bytes per card.
+- SHA-256 anchors taken from the emulator dumps, now embedded in `tools/test_card_images.py`: composed
+  `380f8482...7160` / art `a3079443...492d` (card 1), composed `254f9f94...81ba` / art `78351907...b060`
+  (card 2); the ROM alone reproduces all four.
+- Palette: the card screen's code at `0x08028130` does `CpuFastSet(0x089C54B0 -> 0x02000200, 160 words)`
+  (SWI 0x0B). Correction: Y4 part 3's `sub_08034658` is that same wrapper (destination comes from the caller),
+  it does not write palette RAM; calling it with a dummy argument left palette RAM all-zero, measured.
+- NOT verified: how it looks on screen - the card screen was never displayed, so the on-screen colour/scale is
+  open (A20/A21). The art data is high-frequency, so the 24x24 decode looks dithered at 1:1.
+
+Cost column, the [033] doubt (`docs/game-data.md` "Card Cost"):
+- u32 table `0x08088DF0`, entry n = card n: BEWD 95, Mystical Elf 319, Dark Magician 183, Red-Eyes 207,
+  Celtic Guardian 260, Blue-Eyes Ultimate Dragon 20, Dragon Piper 86 (`[033]`'s 12/20 came from a shifted read).
+- `sub_08006BE4` stores it at `struct+0x0C`, calls `sub_08014110` (Duelist Level), and when Cost > level it
+  replaces the card's description pointer (`struct+0x08`) with `0x08D30F40`, which decodes to "Your Duelist
+  Level is below the Cost. This can't be put in the Deck." Plain deck Cost, used unscaled.
+Card 40: `PY` + the Y4 part 2 decoder, cards 38..42 - each name has its own description; "A being that dwells
+inside a curiously decorated vase" is Dragon Piper's own text, no off-by-one.
+
+New tracked files: `scripts/mgba_gdb.py`, `scripts/emu_groundtruth.sh`, `scripts/emu_card_image.py`,
+`scripts/emu_picture_map.py`, `scripts/emu_anchors.py`; `tools/test_card_images.py` gains the anchors and the
+composed-image rule. Break tests `bash private/tmp/break_card_images2.sh`:
+```
+=== tool absent (must fail)                      FAIL tools/extract_card_images.py does not exist   exit=1
+=== good reference tool in place (must pass)     anchors: 2 cards match the emulator dump / cards: 900 /
+                                                 bytes: 1085114 / ALL CHECKS PASSED               exit=0
+=== broken: window moved to (5,2) (must fail)    FAIL card 1: the 32x32 image in the emulator's tile buffer
+                                                 hashes 380f8482...7160, this composition hashes 9563ec2e... exit=1
+=== broken: column-major tiles (must fail)       FAIL card 1: pixel (9,0) is 115, expected 159        exit=1
+=== broken: wrong palette (must fail)            FAIL card 1: PLTE is not the 256 colours of 0x089C54B0 exit=1
+=== restored good reference (must pass again)    ALL CHECKS PASSED                                   exit=0
+```

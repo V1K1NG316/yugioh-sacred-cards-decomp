@@ -188,33 +188,89 @@ scheme, *not* the TCG attribute: it agrees with the TCG for Light cards (BEWD, M
 Dark ones (Dark Magician, Kuriboh 1=Shadow) but calls Celtic Guardian "Light" (TCG: Earth), Griffore "Forest",
 Baby Dragon "Earth", Red-Eyes and Summoned Skull "Fiend" (A15).
 
-## Card pictures (DeepSeek 2026-10-12, Y4 part 3)
+## Card pictures (DeepSeek 2026-10-12; format **ground-truthed in mGBA**, Y4 part 4)
 * **Pointer table `0x08D536F0`, 901 words, entry n = card n** (1-based; entry 0 points to an all-zero picture and
   is never used). The loader reads `u32[0x08D536F0 + 4*cardId]` with its 1-based card id and does *not* use the
   "-4" trick of the name/description readers, which is why the table carries the extra word; word 901 is outside
   the table. Consistent with the LZ77 census: 901 of the 576-byte blobs are pointed at by a ROM word.
-* Each entry is BIOS **LZ77** (`0x10` + 24-bit size) decompressing to exactly **576 bytes**.
+* Each entry is BIOS **LZ77** (`0x10` + 24-bit size) decompressing to exactly **576 bytes**. **Verified in the
+  emulator**: `sub_08034AF8` decompresses card 1 / card 2 into `0x02018800`, and the 576 bytes there are
+  byte-for-byte the Python LZ77 decode (`scripts/emu_anchors.py` re-checks it; SHA-256 in
+  `tools/test_card_images.py`).
 * Those 576 bytes are **8 bits per pixel** palette indices in **8x8-pixel tiles of 64 bytes**, nine tiles in
-  row-major order = **24x24 pixels**. Evidence: the byte-period-8 self-correlation dominates (0.20 / 0.33 for
-  cards 1 / 2, against 0.13 for period 16 and 0.12 for period 24), a *linear* reading shows no structure while the
-  tiled reading puts a 1-pixel background border round the picture on all four sides, and 864 of 900 pictures share
-  one background index (`0x9f`).
-* **Palette: the 256-colour BGR555 table at `0x089C54B0`** (512 bytes; entries `0xa6`..`0xff` are zero). The card
-  screen's loader `sub_08034658`/`sub_0803466C` copies `0xa0` halfwords = 320 bytes = 160 colours of it. Index
-  `0x9f` = `0x14A5` = `#292929` is the picture background, index 0 = `0x7FFF` = white. The same index space is
-  used by the card frames below.
+  **row-major** order = **24x24 pixels** (`tile = (y//8)*3 + (x//8)`, byte `(y%8)*8 + (x%8)`). 864 of 900 pictures
+  use one background index (`0x9f`) and carry a 1-pixel `0x9f` border on all four sides.
 * **Card frames**: `struct[+0x19]` picks one of the 10 pointers at `0x08D536C8` -> `0x0894BCB4 + k*0x400`,
-  1024 bytes each = 16 tiles = **32x32, same 8bpp tile format**; entries 0..8 are the *same* frame with three
-  palette indices remapped (204 byte substitutions: `0x07`->`0x1D` etc.), entry 9 is all zeros. Index 0 renders as
-  a 2-pixel black border with a 1-pixel `0x9f` + frame-colour inner line - a card frame.
-* Drawing: `sub_08034AF8` (picture) / `sub_080351A4` (variant) decompress the art to `0x02018800`, then
-  `sub_08034B40` / `sub_080351EC` merge it with the frame image into a destination given by the caller
-  (`sub_08034684` passes `0x02010400 + slot*32`). The exact merge/tile order on screen is not decoded (the
-  on-ROM pictures are already whole, so the extractor does not need it).
-* Extractor / decoder: `tools/extract_card_images.py` (job `card_images`) writes one 8-bit indexed PNG per card,
-  `private/extracted/cards/<n>.png`, 24x24, with the palette above; check `tools/test_card_images.py`
-  (`cards: 900` / `bytes: 1085114` / `ALL CHECKS PASSED`). Card 1 (Blue-Eyes White Dragon) and card 35
-  (Dark Magician) also decoded by hand into `private/tmp/card_001.png` / `card_035.png`.
+  1024 bytes each = 16 tiles = **32x32, same 8bpp tile format** (row-major, 4 tiles per row); entries 0..8 are the
+  *same* frame with three palette indices remapped (204 byte substitutions: `0x07`->`0x1D` etc.), entry 9 is all
+  zeros. Index 0 renders as a 2-pixel black border with a 1-pixel `0x9f` + frame-colour inner line - a card frame.
+  The frame id comes from the byte table `0x0808A693`, entry n = card n (card 1 -> 0, card 2 -> 1, card 35 -> 0,
+  card 866 -> 5); check it with `PY scripts/emu_anchors.py`.
+* **The card image the game builds (`sub_08034AF8` -> `sub_08034B40`), measured in mGBA**: a **32x32, 8bpp** image,
+  8x8 tiles of 64 B, row-major, that is the **frame asset with the 24x24 art pasted into a window at (4,2)**
+  (4-pixel margins left/right, 2 above, 6 below). 576 art bytes + 448 frame bytes = 1024 = one 32x32 8bpp tile
+  image exactly. The frame's own border pixels prove the window: every composed byte outside (4,2)..(27,25) equals
+  the frame asset, 448 of 448, for cards 1 and 2.
+* **Where it goes**: the caller (`sub_08034684`) passes `0x02010400 + table[slot]*32` as the destination; the
+  routine writes image byte `i` at destination byte **`i + 768*(i//256)`** - i.e. the destination is a screen tile
+  buffer whose tile rows are **768 bytes (12 tiles)** apart and the card's 4 tiles sit at the start of four
+  consecutive rows. Measured by calling `sub_08034B40` with pattern sources (one 4-byte chunk index per chunk) and
+  reading back which chunk landed where: 144 picture chunks + 112 frame chunks = exactly 1024 bytes written.
+* **Palette: the BGR555 table at `0x089C54B0`** (512 bytes for the first 256 colours; entries `0xa6`..`0xff` are
+  zero, which fits the art, whose indices stop at `0x9f`). The card screen's own code confirms the address: the
+  routine at `0x08028130` does `CpuFastSet(0x089C54B0 -> 0x02000200, 160 words = 640 bytes)` (SWI `0x0B`)
+  before it fills its 5 card slots. (Correction to Y4 part 3: `sub_08034658`/`sub_0803466C` are *that same*
+  CpuFastSet wrapper - they copy 160 **words** from `0x089C54B0` to a destination the caller passes in `r0`; they
+  do not write palette RAM themselves, and calling `sub_08034658` with a dummy argument leaves palette RAM
+  untouched, as measured.) Index `0x9f` = `#292929` (art background), index 0 = `#FFFFF6`.
+* **Not verified: how it looks on screen.** mGBA's front ends give no way to script input or reach a screen, so the
+  card screen was never displayed: the *bytes* the game produces are measured (hashes above), but the on-screen
+  colour/scale is not. The art data itself is high-frequency (only 22% of neighbouring pixels are equal, RGB
+  distance to the neighbour ~160/765) - it reads as dithered/noisy at 1:1, which is exactly the appearance the
+  Y4 part 3 review rejected. Composed PNGs for the reviewer: `private/tmp/card_composed_001.png` (Blue-Eyes),
+  `_002.png`, `_035.png` (Dark Magician), `_866.png`.
+* Extractor / decoder: `tools/extract_card_images.py` (job `card_images`, still queued - the file does not exist
+  yet) writes one 8-bit indexed PNG per card, `private/extracted/cards/<n>.png`, 24x24, with the palette above;
+  check `tools/test_card_images.py` (`anchors: 2 cards match the emulator dump` / `cards: 900` /
+  `bytes: 1085114` / `ALL CHECKS PASSED`; it fails if the window moves, if the tile order changes, or if the PLTE
+  is not `0x089C54B0`).
+* Emulator harness (all tracked): `scripts/mgba_gdb.py` (gdb-stub client, no gdb needed),
+  `scripts/emu_groundtruth.sh` (launch mGBA on a ROM copy + run one script; mGBA 0.10.5 accepts one client per
+  launch), `scripts/emu_card_image.py` (call the game's routine, dump what it wrote), `scripts/emu_picture_map.py`
+  (the impulse test that measured the byte mapping), `scripts/emu_anchors.py` (re-derive the anchors from the ROM
+  and compare with the dumps). mGBA here is `D:\Custom_Pokemon\private\tools\mGBA\mGBA-0.10.5-win64`, run from a
+  copy under `private/tmp/` so nothing is written next to the original.
+
+## Card Cost and the Duelist-Level gate (verified, DeepSeek 2026-10-12, Y4 part 4)
+Closes the doubt in `[033]`. The card row's **Cost** is a 32-bit value from the table `0x08088DF0`
+(entry n = card n; entry 0 unused): Blue-Eyes White Dragon 95, Mystical Elf 319, Hitotsu-Me Giant 121,
+Dark Magician 183, Red-Eyes B. Dragon 207, Celtic Guardian 260, Blue-Eyes Ultimate Dragon 20, Dragon Piper 86.
+`sub_08006BE4` (the row loader) stores it at `struct+0x0C` and then, at `0x08006C5E`..`0x08006C6A`:
+```
+bl 0x8014110            ; returns the player's Duelist Level
+ldr r1,[r5,#12]         ; the card's Cost
+cmp r1, r0
+bls 0x8006CA0           ; Cost <= level: fall through and store the card's own description
+ldr r0,=0x08D30F40      ; Cost >  level: store this pointer instead
+str r0,[r5,#8]          ; struct+0x08 = description pointer
+```
+`0x08D30F40` decodes (with the text tables of Y4 part 2) to **"Your Duelist Level is below the Cost. This
+can't be put in the Deck."** So the column is a plain deck Cost used **unscaled**, compared directly against the
+Duelist Level, and the odd-looking values (BEWD 95 vs Mystical Elf 319, Dark Magician 183 vs Red-Eyes 207 - the
+`[033]` note quoted 12 and 20) are the game's own numbers, not a misread column. The values above are read
+straight from the table with the loader's own indexing (1-based, u32).
+
+## Card 40 "Dragon Piper" description (checked, DeepSeek 2026-10-12, Y4 part 4)
+No off-by-one. Cards 38..42, name then description, decoded with the Y4 part 2 text decoder:
+```
+ 38 Gaia The Fierce Knight    A powerful knight that rides a horse faster than the wind.
+ 39 Curse of Dragon           A yellow dragon that breathes the very flames of hell.
+ 40 Dragon Piper              A being that dwells inside a curiously decorated vase.
+ 41 Celtic Guardian           An elf that has been given training in the ways of the sword.
+ 42 Illusionist Faceless Mage An odd being without a face but with heads on both its shoulders.
+```
+Every line describes its own card, the names are monotonic, and "A being that dwells inside a curiously decorated
+vase" is Dragon Piper's own text (the card is drawn as a creature in a pot).
 
 
 ## Other leads (unverified)
