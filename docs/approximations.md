@@ -108,3 +108,29 @@ Every labelled guess (A1..An) and where it is marked.
   (0x54, 0x59, 0x21C), Blue-Eyes' slot 1 reads "…will be summoned", and slots 35/58/865/887 are empty, yet
   `word[0x08DFC054 + 4*2]` is exactly Mystical Elf's effect line. Reading it as an *effect id* is a guess.
   Marked in `docs/game-data.md` §Text. (2026-10-12, Y4 part 2)
+- **A15** — the attribute column of `card_stats.tsv` (`0x08089C04` -> struct `+0x17`) holds an index into the
+  game's own 12-entry attribute table (`0x08D419E0`: Shadow, Light, Fiend, Dreams, Pyro, Forest, Wind, Earth,
+  Thunder, Aqua, Divine). That it *is* the attribute is verified by code (`sub_080073A8` prints it via the name
+  getter `sub_0801A624`), but the game's attribute is **not** the TCG attribute: it agrees for Light (BEWD,
+  Mystical Elf) and Dark (Dark Magician "Shadow", Kuriboh "Shadow") and disagrees for Celtic Guardian
+  (game "Light", TCG Earth), Griffore ("Forest", TCG Earth), Baby Dragon ("Earth", TCG Wind), Red-Eyes B.
+  Dragon and Summoned Skull ("Fiend", TCG Dark), Blue-Eyes Ultimate Dragon ("Divine", TCG Light). Reading the
+  12 values as the old Game Boy Duel Monsters attribute set is a guess; the byte values themselves are data.
+  Marked in `docs/game-data.md`. (2026-10-12, Y4 part 3)
+- **A16** — struct `+0x1a` (`0x0808AD9D`) and `+0x1b` (`0x0808AA18`) are read as "effect/script ids": the card
+  screens `sub_080113EC` / `sub_080285E8` store them to RAM (`0x0201CB3C`, `0x0201CB34`) and index tables of
+  **code** pointers (`0x08D353A0`, `0x080FB79C`, `0x08D34B80`) that are tail-called through the `bx r0` stub
+  `sub_08038E24`. The value *ranges* are solid data (`+0x1a` = 2 for all 773 monsters, one distinct value per
+  Magic/Ritual/Trap card; `+0x1b` nonzero for 79 cards, including Mystical Elf, whose description says it powers
+  up Blue-Eyes White Dragon), but "which routine the game then runs" is not traced, so the *name* is a guess.
+  (2026-10-12, Y4 part 3)
+- **A17** — struct `+0x19` (`0x0808A693`) selects one of the 10 card-frame graphics at `0x08D536C8` (the picture
+  loader reads it), and it is 3 for every Magic card, 4 for every Trap and 5 for every Ritual - solid. What
+  1 (75 cards), 6 (1 card), 7 (1 card) and 8 (1 card) mean is unknown; "frame colour variant" is a guess from
+  the frame data (the 9 frames are one shape with three palette indices remapped). Marked in `docs/game-data.md`.
+  (2026-10-12, Y4 part 3)
+- **A18** — the loader does `struct[+0x1d] = table[0x0808B4A7 + struct[+0x1a]]`, and `sub_0800BB9C` then reads
+  `u16[0x08D3632A + 8*struct[+0x1d]]` and loads the **card id** it finds there. The 8-byte records at
+  `0x08D36328` look like pairs of card ids (record 0 all zero, record 1 = 38,364), i.e. it behaves like a
+  "related card" table, but which game mechanic uses it (fusion? transformation? deck helper?) is a guess.
+  Marked in `docs/game-data.md`. (2026-10-12, Y4 part 3)
