@@ -15,6 +15,9 @@ SRC   = private/asm/rom.s
 # The sources rom.s includes (one file per function + the data files): make must
 # rebuild when one of them is edited, e.g. by the C4 mutation test.
 PARTS = $(wildcard private/asm/funcs/*.s) $(wildcard private/asm/data/*.s)
+# Y5: every src/funcs/<name>.c replaces that function's generated asm (scripts/build_matched.sh).
+MATCHED_C = $(wildcard src/funcs/*.c)
+BUILD_SCRIPTS = scripts/build_matched.sh scripts/match_func.sh scripts/link_at.sh
 
 SHELL_OBJ = $(BUILD)/rom_shell.o
 SHELL_ELF = $(BUILD)/yugioh_shell.elf
@@ -29,8 +32,9 @@ $(SRC):
 	@echo "$(SRC) is missing -- generate it: wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/disasm.sh"
 	@exit 1
 
-$(OBJ): $(SRC) $(PARTS) asm/macros.inc ld_script.txt
+$(OBJ): $(SRC) $(PARTS) $(MATCHED_C) asm/macros.inc ld_script.txt $(BUILD_SCRIPTS)
 	@mkdir -p $(BUILD)
+	@bash scripts/build_matched.sh
 	$(AS) -o $@ $(SRC)
 
 $(ELF): $(OBJ) ld_script.txt
