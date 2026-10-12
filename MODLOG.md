@@ -267,3 +267,26 @@ TASK [022]. New files: `scripts/asm_with_defsyms.sh`, `scripts/rom_func_obj.sh`,
   both `sha1=d3710031520d9cdae70d870c60b1667285fe5230 OK`; `git check-ignore -q` = 1 for all 8 new
   files; `make compare` → `private/build/yugioh.gba: OK`.
 
+## 2026-10-12 — Y4 part 1: graphics and text survey (DeepSeek, `deepseek/y4-survey`)
+
+Compression families found and turned into jobs; text tables mapped; the `0x87` accent table decoded.
+Evidence: `private/tmp/refroot/` (a scratch root holding reference implementations + the ROM copy) and
+`private/tmp/break_checks.sh`; commands and output in REPORT `[026]` of `AI_Conversation.md`.
+
+- New check scripts (committed, they define three local jobs whose tools the local model still writes):
+  `tools/test_lz77.py`, `tools/test_text_tables.py`, `tools/test_find_text_tables.py`.
+  All three were verified both ways: exit 0 against a reference implementation in `private/tmp/refs_good/`,
+  exit 1 (with the mismatching line printed) against a deliberately broken one and against a missing tool.
+  `PY tools/test_lz77.py` in `private/tmp/refroot` → `blobs: 1084 / out bytes: 3398277 / ALL CHECKS PASSED`.
+- `tools/test_lz77.py` also caught a real bug in my first reference decompressor: the overlapping back-reference
+  copy (`bytes(out[-dist] for _ in range(count))` evaluates one byte `count` times) — fixed to append byte by
+  byte, mirroring the BIOS. First run of the check: `FAIL blob 0x0803C44C differs: 16384 bytes, want 16384`.
+- Job recipes written (not queued: their checks must be merged to `main` first):
+  `private/jobs/drafts/lz77_extract.md`, `private/jobs/drafts/text_tables.md`,
+  `private/jobs/drafts/text_table_map.md`. `docs/jobs.md` has the batch entry.
+- Docs: `docs/game-data.md` gained §Compression, §Text, §`0x87` accented letters; `docs/approximations.md`
+  gained A10 (LZ77 blob rule), A11 (text-pointer-table rule), A12 (description index is still unknown).
+- Gates: `PY tools/guard_repo.py` → `guard: 87 files checked, 0 failures`; `PY tools/hash_rom.py` → ORIGINAL and
+  BASEROM both `OK` (exit 0); `make compare` (WSL) → `private/build/yugioh.gba: OK`; `git check-ignore -q` = 1
+  for each of the three new check scripts; nothing under `private/` staged.
+

@@ -28,3 +28,22 @@ and the exact make_job.py command without queueing anything (verified this turn)
 `PY tools/pick_decomp_targets.py 10`: `sub_080243A0`, `sub_080016CC`, `sub_08005FFC`,
 `sub_08006270`, `sub_080095B4`, `sub_08009680`, `sub_0800ABE0`, `sub_0800ABEC`, `sub_0800ABF8`,
 `sub_0800AC04` (8-12 code bytes each).
+
+## 2026-10-12 — batch 3 (Y4 part 1: graphics and text, by DeepSeek on `deepseek/y4-survey`)
+Not queued yet: `tools/make_job.py` refuses a check whose `.py` is not yet on `main`, and all three checks below
+are new on this branch. Claude merges, then the three `make_job.py` lines listed in REPORT `[026]` can be run.
+Each job writes **one** tool and nothing else; every check recomputes the full expected output from the ROM and
+was verified to exit 0 against a reference implementation and non-zero against a broken one.
+- `tools/find_lz77.py` — every LZ77 blob (BIOS format) in the ROM → `private/extracted/lz77/<ADDRESS>.bin` +
+`index.tsv` (1084 blobs, 3 398 277 bytes out, 2 381 036 bytes in). Check: `PY tools/test_lz77.py` (compares
+the index, every blob's bytes, the file set and stdout against its own decompressor). Recipe:
+`private/jobs/drafts/lz77_extract.md`. Purpose: the graphics half of Y4 without spending DeepSeek tokens on a
+16 MiB scan.
+- `tools/extract_text_tables.py` — the four multi-language tables (credits ×140, duel messages ×124, attributes
+×12, card types ×24) → `private/extracted/text_tables.tsv` (300 records, 89 636 bytes of raw record hex).
+Check: `PY tools/test_text_tables.py`. Recipe: `private/jobs/drafts/text_tables.md`. Purpose: the non-card
+text Y4 needs, and the raw material for a glyph decoder.
+- `tools/find_text_tables.py` — whole-ROM map of pointer tables aimed at `$0` text records →
+`private/extracted/text_table_map.tsv` (15 tables). Check: `PY tools/test_find_text_tables.py`. Recipe:
+`private/jobs/drafts/text_table_map.md`. Purpose: the systematic version of the hand survey; it reproduces
+every table found by hand, entry counts included.
