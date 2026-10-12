@@ -42,11 +42,20 @@ awk -v n="$NAME" '
 [ -s "$OUT/$NAME.rom.s" ] || {
   echo "rom_func_obj: no asm for $NAME in private/asm/rom_full.s (run scripts/disasm.sh first?)" >&2; exit 2; }
 
-# A trailing `.align` is padding for whatever comes next, not part of the function (the ROM has
-# zeros there, which the assembler would happily add again -- but they are not this function's).
+# A trailing `.align` is the ROM's own zero padding up to the next function's start, and it IS
+# part of this function's extent in config/functions.csv (`size` = distance to the next start).
+# It must stay, and it must say what it fills with: the disassembly writes `.align 2, 0`, which
+# emits `00 00` like the ROM. Trimming the line instead makes the assembler round the section up
+# on its own, and it fills that with `c0 46` (mov r8,r8 -- the Thumb nop), so the last bytes come
+# out as `c0 46` where the ROM has `00 00` and every padded function fails its compare (seen on
+# sub_080045C4). So: drop trailing blank lines only, and make any trailing bare `.align N`
+# explicit about its zero fill.
 awk '{ lines[NR] = $0 }
      END { last = NR
-           while (last > 0 && (lines[last] ~ /^[ \t]*\.align/ || lines[last] ~ /^[ \t]*$/)) last--
+           while (last > 0 && lines[last] ~ /^[ \t]*$/) last--
+           if (last > 0 && lines[last] ~ /^[ \t]*\.align[ \t]+[0-9]+[ \t]*$/) {
+             sub(/[ \t]*$/, "", lines[last]); lines[last] = lines[last] ", 0"
+           }
            for (i = 1; i <= last; i++) print lines[i] }' \
   "$OUT/$NAME.rom.s" > "$OUT/$NAME.rom.s.trim"
 mv "$OUT/$NAME.rom.s.trim" "$OUT/$NAME.rom.s"

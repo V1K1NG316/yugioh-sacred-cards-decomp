@@ -224,4 +224,32 @@ so pip is bootstrapped into the venv itself from `bootstrap.pypa.io/get-pip.py`.
 installed system-wide, nothing under `private/` is committed; the commit hashes, sizes and licences
 are in `docs/credits.md`. Without them, `diff_func`/`permute_func` say what is missing and stop.
 
+## 11. Open: agbcc saves `lr` where the ROM does not (leaf + conditional branch)
+
+Found 2026-10-12 while drafting 20 functions ([045]); it blocked J0030 (`sub_080045C4`) twice and
+three of those drafts. Symptom: every instruction matches the ROM except the prologue/epilogue --
+agbcc emits `push {lr}` ... `pop {r1}; bx r1` where the ROM has neither `push` nor `pop`, just
+`bx lr` (2 bytes longer, and the literal pool then needs no `align` pad).
+
+Counted over `private/asm/rom_full.s` (1971 THUMB functions): **82** are leaf functions with at
+least one conditional branch and **no** `lr` save in the ROM; **177** others of the same kind do
+save `lr`, so the ROM's compiler decided per function, while our agbcc (gcc 2.9-arm-000512,
+`private/tools/agbcc`) saves `lr` for every source shape tried:
+
+- 10 hand-written shapes (if/else two returns, reversed condition, index vs pointer, ternary, `while`,
+  store inside/after the branch, `u16`/`u32`/pointer argument, `-O0/-O1/-O2`, `-f(no-)omit-frame-pointer`,
+  with/without `-mthumb-interwork`) -- all `push {lr}` (`private/tmp/frames*.sh`).
+- `tools/permute_func.sh sub_080045C4 5 --base private/tmp/rescue/sub_080045C4.c`: 41719 candidates,
+  base score 405, nothing better, no `best.c`.
+- Two probes written from the ROM's own disassembly (`sub_080045C4`, `sub_08018618`) reproduced the
+  ROM's instruction bytes exactly -- same registers, same pool placement, same branch offsets -- and
+  differed only by the frame.
+
+So this looks like a difference in agbcc's Thumb "does this function need `lr`" heuristic (a far-branch
+estimate made before the literal pools exist), not a source-shape problem; the class of affected
+functions cannot be matched with the current toolchain until that is settled. Cheapest first moves:
+match one of the 82 with a patched/candidate agbcc build, or list them as non-matching (asm) in
+`config/functions.csv` and skip them in local jobs.
+
+
 
