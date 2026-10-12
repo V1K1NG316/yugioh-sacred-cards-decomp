@@ -77,3 +77,38 @@
 - Gates: `wsl ... bash scripts/build.sh` → `private/build/yugioh.gba: OK`, exit 0;
   `guard_repo.py` 38 files, 0 failures; `hash_rom.py` ORIGINAL+BASEROM OK; all changed/new files
   check-ignore = 1. Job `J0002` (string extractor) passed at 06:14 on main.
+## 2026-10-12 06:32 — Y3 part 1: gbadisasm pipeline, `make compare` builds the disassembly (DeepSeek, branch `deepseek/y3-disasm`)
+- New: `tools/make_disasm_cfg.py` (config/functions.csv → `private/asm/rom.cfg`),
+  `tools/post_disasm.py` (raw gbadisasm → `private/asm/rom.s`), `scripts/disasm.sh` (the whole
+  pipeline), `asm/macros.inc` (pret-style `thumb_func_start` / `arm_func_start` /
+  `non_word_aligned_thumb_func_start`). Updated: `Makefile` (`compare` now builds
+  `private/asm/rom.s`, the Y1 shell build moved to `compare-shell`), `docs/credits.md`
+  (gbadisasm + bundled Capstone 3.0.5-rc2, commit, licence).
+- Tool: `git clone https://github.com/jiangzhengwenjz/gbadisasm private/tools/gbadisasm`
+  → commit `940def2c91d678ee671716b8b44a2223c0ff2c62`; `make -j4` in WSL builds Capstone 3.0.5-rc2
+  (arm only) + `gbadisasm`, `make exit=0`. `https://github.com/pret/gbadisasm` does not exist (404).
+- Command: `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/disasm.sh` →
+  `functions.csv: 1034 rows (thumb 1031, arm 3)` / `raw -> rom_raw.s : 1139194 lines, 12315 labels,
+  last label 0x0803B61C` / `wrote private/asm/rom.s: 4 trailing bytes appended, 1 branches narrowed
+  to .n`. Generation 16 s, assembly 4 s.
+- `wsl ... make compare` → `private/build/yugioh.gba: OK`, exit 0. Byte-identical.
+- Functions disassembled: 1977 (1034 census rows + 943 extra entry points gbadisasm's own BL
+  analysis found; 4 ARM incl. a previously unknown ARM subroutine `sub_08036C74` reached by a
+  Thumb `add r2, pc, #0; bx r2` thunk). Bytes: instructions 177622 (82029 lines, 1.06% of the ROM),
+  data 16599594 (98.94%: `.byte` 16565922, `.4byte` 30372 = 7593 literals/jump-table words,
+  `.align` padding 3300). Line-by-line replay lands on `0x09000000` with 0 drift: the split is exact.
+  Inside the code block `0x08000000-0x0803B5D0`: 177554 instruction bytes, 65598 data/pad.
+- Two authored post-processing steps were needed (both in `tools/post_disasm.py`, both first
+  discovered by the byte diff): (1) gbadisasm drops the bytes after its final label — the sentinel
+  `data_label 0x08FFFFFC` in the cfg pins it, post_disasm appends the last 4 bytes;
+  (2) `b <sym>` to a `non_word_aligned_thumb_func_start` symbol assembles as a 4-byte `b.w` (the
+  symbol's Thumb bit makes GNU as refuse the 2-byte form) — post_disasm rewrites exactly those
+  branches to `b.n`. First diff before the fix: `0x0803714C` orig `ED E7 00 00` vs built
+  `FF F7 ED BF`.
+- Falsification: `mov r0, #0x12` → `#0x13` on line 27 of `private/asm/rom.s` → `make compare` FAILED
+  (`sha1sum: WARNING: 1 computed checksum did NOT match`); restored → `OK`, exit 0. Fork-copy
+  `asm/rom.s` path: `make compare-shell` → `private/build/yugioh_shell.gba: OK`, exit 0.
+- Gates: `make clean && make compare` → OK, exit 0; `guard_repo.py` 41 files, 0 failures;
+  `hash_rom.py` ORIGINAL+BASEROM OK; new files check-ignore = 1 (tracked).
+- Note: `docs/credits.md` was the one file in the repo with mixed LF/CRLF endings; it is now
+  uniformly CRLF like the rest of `docs/`.
