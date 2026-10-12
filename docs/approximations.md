@@ -206,3 +206,10 @@ Every labelled guess (A1..An) and where it is marked.
   ids, one more than the 129/92 recorded there — the extra site is `0x08DD2695` (duel 24), whose
   enclosing record is 3147 bytes long and was missed by the older 3000-byte back-search; every
   site in `duel_scripts.tsv` is in this set. (DeepSeek, 2026-10-12, [048])
+
+- **A-pack1 (Claude, from Matter_Scatter's memory of the game, 2026-10-12 19:48)**: after a won duel the player picks one of
+  **3 packs** and receives about 5–7 cards. Hypothesis: the per-duel pools (record +0x08 / +0x0C / +0x10, read at
+  duel start per [048]) are the **reward-pack generator**, pre-rolled at duel start and shown after the duel:
+  pool A = the opponent's themed cards, pool B = occasional rare card from the 885-card list (~50%), pool C =
+  shared special case (49-id set). To verify: find the routine that fills 3 × N reward slots with
+  `sub_0801649C` / `sub_08016768` rolls, and the post-duel 3-pack screen. Not yet verified.
