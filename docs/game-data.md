@@ -375,9 +375,99 @@ either. Opponent names exist only *inside* dialogue text — either as the addre
 line (that is how duels 59/79/93 were identified above). Finding the full duel → NPC → name map
 needs the map/NPC tables, which is a separate job.
 
+**Which of the three lists is read, and what decides it** (DeepSeek 2026-10-12, [048]; code
+evidence, not a guess). At duel start `sub_08017F54` copies the 10 words of `record(duel id)`
+into RAM `0x02020D30+0x2C` word for word, so RAM `+0x34` *is* the record's `+0x08`, `+0x38` is
+`+0x0C` and `+0x3C` is `+0x10` (`sub_08017CA8` re-copies them when a duel is entered). The two
+readers then differ:
+* `+0x0C` (RAM `+0x38`) is read by `sub_08016768` (roll `sub_08034628(0, 0x752F)` = 0..29999),
+  which only `sub_08016748` calls and which only the duel-start routine `sub_08016254` calls;
+  it runs **50 times** at the start of every duel. Its content is not per-duel at all: 103 of
+  the 200 records point at the single shared table `0x080C65D4` (885 ids, uniform ~34 weight
+  each), the other 97 at `0x080C65D0` — the same address 4 bytes lower, where the first id is 0,
+  i.e. an empty list. So `+0x0C` is the tournament-wide "any card" pool.
+* `+0x08` and `+0x10` are read by `sub_0801649C` (roll `sub_08034628(0, 0x7FF)` = 0..2047) and
+  **which of the two it uses is decided by the card id in `0x02020B34`**: it calls
+  `sub_0801823C(id)`, which returns 0 when the id is one of the **49 ids in the table at
+  `0x080BA280`** and 1 otherwise; `r0 == 1` (not in the table) loads RAM `+0x34` = record
+  `+0x08`, `r0 == 0` (in the table) loads RAM `+0x3C` = record `+0x10`. `0x02020B34` is written
+  by the card-resolution path from `sub_0800475C(2)` (the id of the card being resolved,
+  `0x080077xx` region) and zeroed by `sub_08007604`, so at the start of a duel it is 0 — a value
+  that is not in the table — and the opening hand (`sub_0801644C`, 10 cards into RAM `+0x12`)
+  comes from `+0x08`.
+* Content confirms which is which: `+0x08` is per-duel (49 distinct pointers across the 200
+  records; 93 records have a list of 1..74 entries, 107 are empty; duel 59's six zombie cards,
+  duel 93's 15 machine cards), while `+0x10` is one shared list of **57 ids** at `0x080B80CC`
+  in 102 of the records — nearly the same card set as the 49-id table `0x080BA280` (that table
+  has 24, 318, 655, 658, 672, 870 that the list lacks; the list has 14 ids the table lacks),
+  i.e. a curated "special cards" pool.
+So: **`+0x0C` is always read at the start of a duel; `+0x08` versus `+0x10` depends on whether
+the card being resolved in that moment is one of the 49 special cards.** What the two pools are
+*for* in game terms (which one feeds the opponent's hand, which one the card the player wins)
+is not established — labelled A26.
+
 **Tools**: extractor `tools/duel_table.py` → `private/extracted/duel_table.tsv` (200 rows, one per
 record), `duel_decks.tsv` (card ids + names per duel, 42 distinct decks) and `duel_scripts.tsv`
 (129 opcode sites). Check `tools/test_duel_table.py` (full recompute of all three files plus the
 structural invariants above; `ALL CHECKS PASSED`). A second check `tools/test_duel_rewards.py` is
 in place for the local job that writes `tools/duel_rewards.py` (raw lists with card names and
 `chance_ppm`); recipe `private/jobs/drafts/duel_rewards.md`.
+
+## Opponent names from the story scripts (DeepSeek 2026-10-12, [048])
+
+Plain answer first: the game says an opponent's name out loud for only a few of the 200 duels.
+What the text does support is in `private/extracted/duel_names.tsv` (200 rows), produced by
+`tools/duel_names.py` and checked by `tools/test_duel_names.py`. Everything the game does not
+say is **left blank** rather than filled in from the deck or from general knowledge.
+
+Method (all of it reproducible from the ROM):
+* The `#8 <id>` opcode is the last thing in the line an NPC says before a duel, and the duel
+  code uses the byte after the `8` as the record index — so **the speaker of that record is the
+  opponent**. 130 such sites exist in the data half (`0x08D00000` up), covering 93 distinct
+  duel ids. (The older extraction lists 129: it misses `0x08DD2695` (duel 24), whose enclosing
+  record is 3147 bytes long. Every site in `duel_scripts.tsv` is in this tool's set.)
+* Dialogue records are stored back to back — each ends with `00`, the next starts with `$0` — so
+  the record before the opcode's record is the *same NPC's* earlier line; the usual pattern is
+  "What? Are you challenging me? Sure, I accept." / "Heh, don't whine and cry if you lose!"
+  (duel 35). The window is the opcode's record plus the two before it. Looking further back
+  leaves the conversation: a 16-record window picks up Bonz eleven records before duel 93
+  (a different character).
+* A name is written only when the game backs it *twice over*: the speaker introduces himself
+  ("I'm …", "My name is …", "<Name>, the …"), **or** the name is used in the window and the
+  duel's own 40 cards match that character's card theme (the game's own type/attribute columns
+  in `card_stats.tsv`; agreement = 15+ of 40 cards). The deck is a check, never a source.
+* Only **three characters** ever introduce themselves in the whole data half: Bonz, Bandit
+  Keith, and Marik ("My name is Marik Ishtar" — and that record is not next to any duel, so no
+  row rests on it). Four mentions that a read showed are not the opponent are excluded
+  with a reason (`EXCLUDED` in `tools/duel_names.py`): duel 12 (the line asks "why are they after
+  us?" *about* Marik), 72 (a simile — "I'm kind of like Mako Tsunami"), 76 (someone looking for
+  Kaiba), 87 (the line *addresses* Marik — "Master Marik Ishtar… I beg your forgiveness").
+
+| duel | name | confidence | the line it rests on (evidence_addr) |
+|---|---|---|---|
+| 21 | Bonz | low | "Bonz, the undead, shall duel forever!" (0x08DD2E7F) + zombie deck 16/40 |
+| 26 | Weevil Underwood | low | "Not I, but Mr. Underwood himself will duel you." (0x08D7B8EA) + insect deck 34/40 |
+| 39 | Weevil Underwood | low | "challenging Mr. Underwood? You'll have to beat me first." (0x08D798B4) + 26/40 |
+| 40 | Weevil Underwood | low | "Mr. Underwood has no time to deal with dregs like you." (0x08D7A213) + 26/40 |
+| 57 | Weevil Underwood | low | "Mr. Underwood is the toughest duelist." (0x08D7ADA5) + 26/40 |
+| 59 | Bonz | high | "Bonz, the undead, shall duel forever!" (0x08DD2E7F) |
+| 79 | Bonz | high | "Duel? I'm Bonz, the undying." (0x08D60837) |
+| 90 | Bandit Keith | low | "I'll take the Ghouls. #5, Keith is yours." (0x08D84C16) + machine deck 20/40 |
+| 93 | Bandit Keith | high | "I'm Bandit Keith. However far I fall, I'll keep crawling back up." (0x08DD792A) |
+
+The three `high` rows are facts: the speaker of the duel-starting line says who he is (duels 59
+and 79 are Bonz's ghost, 93 is Keith). The `low` rows are leads, not facts: the name is used in
+the duel's own neighbourhood and the deck matches, but the speaker may be the character's
+follower ("Mr. Underwood has no time to deal with dregs like you" is spoken *by* one of Weevil's
+insect crew, not by Weevil). Each row carries its quote, so the reader decides. Everything else
+is blank: of the 93 duel ids a script starts, only these 9 have a supported name; the duel 84
+that are unnamed keep no name and no guess. In addition each of the 93 rows carries
+`pre_duel_line`, the game's own line for that duel ("All right. I'll take you on."), so a duel
+without a name still has its own label for the opponents page. Duel ids 103..199 have no `#8`
+opcode at all (107 rows) and nothing to name.
+
+Limits worth knowing: the window rule assumes the records around a duel line belong to the same
+NPC, which holds for the "challenge → duel" pairs but not for a record whose Japanese field is
+huge (it swallows the records around it); and the lexicon only holds names the game itself
+spells out (17 characters — names like Arkana, Strings, Lumis, Umbra, Rebecca, Solomon, Serenity,
+Duke never appear in the ROM's dialogue at all, checked by word-boundary search).

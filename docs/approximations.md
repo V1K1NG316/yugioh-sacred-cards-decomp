@@ -185,3 +185,24 @@ Every labelled guess (A1..An) and where it is marked.
   having read the code that loads the deck at duel start. If that turns out to be, e.g., a card
   *pool* rather than a deck, the file layout is unaffected but the wording in `docs/game-data.md`
   is. (DeepSeek, 2026-10-12)
+- **A26** — which of the three weighted lists (`+0x08` / `+0x0C` / `+0x10`) the game reads *for
+  what*. Verified from the code: the record's 10 words are copied verbatim into `0x02020D30+0x2C`
+  by `sub_08017F54` (so RAM `+0x34/+0x38/+0x3C` = record `+0x08/+0x0C/+0x10`); `sub_08016768`
+  (roll 0..29999) reads `+0x0C` and runs 50 times at duel start only; `sub_0801649C` (roll
+  0..2047) reads `+0x08` or `+0x10` depending on whether the id in `0x02020B34` is one of the 49
+  ids in `0x080BA280`. Not verified: what each pool *is* in game terms (the opponent's hand, the
+  ante, the cards the player can win), and that `0x02020B34` really holds "the card being
+  resolved" — that reading comes from `sub_0800475C(2)` being stored there in the card path and
+  `sub_08007604` zeroing it, which fits but was never watched in the emulator. (DeepSeek,
+  2026-10-12, [048])
+- **A27** — the opponent names in `private/extracted/duel_names.tsv` (tool `tools/duel_names.py`).
+  Only the three `confidence=high` rows (59, 79, 93) are read straight out of the text: the line
+  that starts the duel is the opponent's own and he says who he is. The six `low` rows are "a
+  name is used within two records of the duel *and* the duel's own deck matches that character's
+  card theme": duels 39/40/57 rest on lines spoken *by* Weevil Underwood's insect crew, so those
+  rows are leads, not facts. The window rule itself (the `#8` record plus the two records before
+  it) is a heuristic: on duel 93 a 16-record window runs back into Bonz's lines, a different
+  character. Also a correction to A24: this turn finds **130** `#8` sites covering **93** duel
+  ids, one more than the 129/92 recorded there — the extra site is `0x08DD2695` (duel 24), whose
+  enclosing record is 3147 bytes long and was missed by the older 3000-byte back-search; every
+  site in `duel_scripts.tsv` is in this set. (DeepSeek, 2026-10-12, [048])
