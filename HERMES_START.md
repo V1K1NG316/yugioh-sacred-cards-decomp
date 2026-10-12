@@ -36,7 +36,10 @@ Create jobs only with `PY D:/Yugioh_DeComp_V2/tools/make_job.py` (see its docstr
 - is **small**: one function, one table, one script, one doc section; finishable in under ~30 tool calls;
 - has a **check command that exits 0 only when the work is right** (a byte compare, a test, a schema check), written
   by you *before* the job. No check → no job. The worker runs the check itself and ignores the model's claims;
-- lists exactly which files may change (`--allowed`); separate jobs must not touch the same files;
+- lists exactly which files may change (`--allowed`); separate jobs must not touch the same files; never list
+  anything under `private/` (outputs there stay uncommitted; the check reads them from disk);
+- has its check script **already merged on `main`** (the job's worktree starts from main; `make_job.py` refuses
+  otherwise). So queue such jobs in the turn after Claude merges, or propose them in QUESTION;
 - has **recipe-style instructions**: numbered steps, absolute paths inside the job's worktree, exact names, the
   algorithm spelled out. The local model fails on vague or ambiguous instructions.
 Log each batch in `docs\jobs.md`. Failed jobs (out of attempts) land in `private\jobs\failed\` with the check output:

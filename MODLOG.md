@@ -45,3 +45,15 @@
   tracked files check-ignore = 1, `private/jobs/queue/J0002.json` = 0 (ignored).
 - Job `J0002` queued (ROM string extractor, check `PY tools/test_rom_strings.py`, verified against a
   reference implementation before queuing: 57622 rows pass, missing script fails).
+
+## 2026-10-12 06:16 — Claude: job pipeline hardening after J0002
+- J0002 (DeepSeek-made) failed twice: check `PY tools/test_rom_strings.py` → `PY: command not found` (exit 127);
+  test not on main when the worktree was cut; model wrote its own copy of the test (caught: outside allowed) and
+  `git add -f private/extracted/strings.txt` (caught only by size: 2443254 bytes).
+- 72611ff: `make_job.py` expands `PY`, refuses checks whose .py files are not on main; worktrees get a read-only,
+  SHA-1-checked `private/baserom.gba`.
+- eff76e3: `guard_repo.py` fails paths under `private/`/`rom/` and force-added ignored files. Tests: J0002 worktree
+  → 2 failures; small force-added `zz_forced.txt` → FAIL; main → 0 failures; `test_guard.py` cases 1–3 PASS.
+- J0002 requeued: check expanded, allowed only `tools/rom_strings.py`, explicit commit rules; old branch deleted
+  (it held the ROM strings); failed record in `private/jobs/tests/J0002.failed-ops-bug.json`.
+- Briefs: HERMES_START (job rules), LOCAL_WORKER rule 7.

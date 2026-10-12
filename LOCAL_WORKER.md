@@ -13,6 +13,8 @@ Your folder is a **git worktree** (a private copy of the project on your own bra
 4. If something is ambiguous, pick the simplest reading, write it down in `RESULT.md`, and keep going.
 5. Small edits: write files in pieces under ~150 lines. Prefer a short script to reasoning about bytes in your head.
 6. Never touch `rom\` or anything outside your worktree. Never invent command output.
+7. Never `git add` anything under `private\` and never use `git add -f`. Never create or edit the check script.
+   Your worktree has a read-only copy of the ROM at `privateaserom.gba`.
 
 ## Tools
 - Python: `C:\Users\USER\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\python.exe`
