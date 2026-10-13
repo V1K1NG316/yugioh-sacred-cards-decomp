@@ -3,8 +3,22 @@
 # Stops before starting if V2 DeepSeek spend >= $BudgetStopUsd. Resumes the same session (by exact id) with a
 # nudge if the model ends without its REPORT, at most -MaxNudges times.
 param([Parameter(Mandatory)][string]$Entry, [ValidateSet('low','medium','high')][string]$Reasoning = 'medium',
-      [int]$MaxNudges = 2)
+      [int]$MaxNudges = 2, [switch]$Ghidra)   # -Ghidra: give this turn the ghidra-mcp tools (mcp-ghidra)
 . "$PSScriptRoot\common.ps1"
+$HermesCfg = 'C:\Users\USER\AppData\Local\hermes\config.yaml'
+# ghidra-mcp is "enabled: false" in Hermes's config by default: with the server down every Hermes session would
+# wait 15 s for it. -Ghidra starts the server, flips the flag for this turn only, and always flips it back.
+function Set-GhidraMcp([bool]$on) {
+    $txt = [IO.File]::ReadAllText($HermesCfg)
+    $new = [regex]::Replace($txt, '(?ms)(^  ghidra:\r?\n(?:    .*\r?\n)*?    enabled: )(true|false)', ('${1}' + ($(if ($on) { 'true' } else { 'false' }))))
+    if ($new -ne $txt) { [IO.File]::WriteAllText($HermesCfg, $new) }
+}
+$Tools = 'terminal,file,todo'
+if ($Ghidra) {
+    wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_mcp_server.sh start | Out-Null
+    Set-GhidraMcp $true
+    $Tools = 'terminal,file,todo,mcp-ghidra'
+}
 $next = '{0:D3}' -f ([int]$Entry + 1)
 $log  = "$Logs\deepseek-$Entry.log"
 function HasReport { Select-String -LiteralPath $Conv -Pattern "^## \[$next\] (DeepSeek|Hermes)" -Quiet }
@@ -21,13 +35,20 @@ $p = "You are Hermes on DeepSeek, the main engineer of Yugioh_DeComp_V2. Read D:
 $nudge = "Continue TASK [$Entry]. Your last message had no tool call. Make the next tool call now; you are done " +
          "only when REPORT [$next] is appended to D:\Yugioh_DeComp_V2\AI_Conversation.md and committed."
 $t0 = Get-UnixNow
-& $Hermes -z $p --provider deepseek -m $DeepSeekModel --reasoning $Reasoning -t terminal,file,todo --in $Repo 2>&1 |
-    Tee-Object -FilePath $log -Append
-$sid = Get-NewestSession $Repo $t0
-for ($n = 1; $n -le $MaxNudges -and -not (HasReport) -and $sid; $n++) {
-    Say "--- nudge $n (resume $sid)"
-    & $Hermes -z $nudge --provider deepseek -m $DeepSeekModel --reasoning $Reasoning -t terminal,file,todo --in $Repo --resume $sid 2>&1 |
+try {
+    & $Hermes -z $p --provider deepseek -m $DeepSeekModel --reasoning $Reasoning -t $Tools --in $Repo 2>&1 |
         Tee-Object -FilePath $log -Append
+    $sid = Get-NewestSession $Repo $t0
+    for ($n = 1; $n -le $MaxNudges -and -not (HasReport) -and $sid; $n++) {
+        Say "--- nudge $n (resume $sid)"
+        & $Hermes -z $nudge --provider deepseek -m $DeepSeekModel --reasoning $Reasoning -t $Tools --in $Repo --resume $sid 2>&1 |
+            Tee-Object -FilePath $log -Append
+    }
+} finally {
+    if ($Ghidra) {
+        Set-GhidraMcp $false
+        wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_mcp_server.sh stop | Out-Null
+    }
 }
 $after = Get-DeepSeekSpend
 Say "=== done: report=$(HasReport) session=$sid turn cost `$$('{0:N2}' -f ($after - $spent)) total `$$('{0:N2}' -f $after) ==="

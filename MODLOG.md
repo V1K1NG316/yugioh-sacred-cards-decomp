@@ -467,3 +467,14 @@ ORIGINAL + BASEROM `OK` (exit 0); `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp
 exit 1 (tracked) and `git check-ignore -q private/tmp/y5-attempts/sub_080066D0.c` → exit 0 (ignored).
 - 2026-10-12 18:48: Matter_Scatter approved downloading ghidra-mcp (github.com/bethington/ghidra-mcp, Apache-2.0) for agent-driven Ghidra; portable under private/tools/.
 - 2026-10-12 18:50: Matter_Scatter approved adding a ghidra-mcp entry to Hermes global config (C:/Users/USER/AppData/Local/hermes/config.yaml, mcp_servers).
+
+## 2026-10-12 20:08 — Claude: ghidra-mcp wired into Hermes (approved by Matter_Scatter)
+- Hermes global config `C:/Users/USER/AppData/Local/hermes/config.yaml` (backup `config.yaml.bak-pre-ghidra-mcp-20261012_2007`):
+  added `mcp_servers.ghidra` (url http://127.0.0.1:8081/mcp, timeout 120, connect_timeout 15) with **enabled: false**.
+  Reason: with the server down, `hermes mcp test ghidra` waited 15.1 s ("timed out after 15s"); every Hermes
+  session (worker, other projects) would pay that. `hermes mcp list` → ghidra "✗ disabled".
+- `ops/deepseek-turn.ps1 -Ghidra`: starts `scripts/ghidra_mcp_server.sh`, flips enabled→true, adds toolset
+  `mcp-ghidra` (Hermes names MCP toolsets `mcp-<name>`), and in `finally` flips it back and stops the server.
+  Toggle tested on a copy: ON→"enabled: true", OFF→"enabled: false", file identical after ON+OFF.
+- Verified ghidra-mcp itself (Claude re-ran DeepSeek's smoke test): 75→86 tools, decompile, xrefs to
+  0x08D35C28 (3 in sub_08017CA8), rename in a throwaway copy; server stopped, ports closed.
