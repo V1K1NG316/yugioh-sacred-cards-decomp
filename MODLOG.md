@@ -478,3 +478,4 @@ exit 1 (tracked) and `git check-ignore -q private/tmp/y5-attempts/sub_080066D0.c
   Toggle tested on a copy: ON→"enabled: true", OFF→"enabled: false", file identical after ON+OFF.
 - Verified ghidra-mcp itself (Claude re-ran DeepSeek's smoke test): 75→86 tools, decompile, xrefs to
   0x08D35C28 (3 in sub_08017CA8), rename in a throwaway copy; server stopped, ports closed.
+- 2026-10-12 20:11: Claude corrected deepseek-turn -Ghidra toolset to `ghidra` (hermes -z validates MCP toolsets by server name, hermes_cli/oneshot.py); `mcp-ghidra` was ignored ("unknown --toolsets entries"). Turn 053 restarted.

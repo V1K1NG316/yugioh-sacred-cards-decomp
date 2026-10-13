@@ -3,7 +3,7 @@
 # Stops before starting if V2 DeepSeek spend >= $BudgetStopUsd. Resumes the same session (by exact id) with a
 # nudge if the model ends without its REPORT, at most -MaxNudges times.
 param([Parameter(Mandatory)][string]$Entry, [ValidateSet('low','medium','high')][string]$Reasoning = 'medium',
-      [int]$MaxNudges = 2, [switch]$Ghidra)   # -Ghidra: give this turn the ghidra-mcp tools (mcp-ghidra)
+      [int]$MaxNudges = 2, [switch]$Ghidra)   # -Ghidra: give this turn the ghidra-mcp tools (toolset 'ghidra')
 . "$PSScriptRoot\common.ps1"
 $HermesCfg = 'C:\Users\USER\AppData\Local\hermes\config.yaml'
 # ghidra-mcp is "enabled: false" in Hermes's config by default: with the server down every Hermes session would
@@ -17,7 +17,7 @@ $Tools = 'terminal,file,todo'
 if ($Ghidra) {
     wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_mcp_server.sh start | Out-Null
     Set-GhidraMcp $true
-    $Tools = 'terminal,file,todo,mcp-ghidra'
+    $Tools = 'terminal,file,todo,ghidra'   # hermes -z takes the MCP server name (oneshot.py), not mcp-<name>
 }
 $next = '{0:D3}' -f ([int]$Entry + 1)
 $log  = "$Logs\deepseek-$Entry.log"
