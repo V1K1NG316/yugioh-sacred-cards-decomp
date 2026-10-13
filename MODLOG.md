@@ -517,3 +517,12 @@ Gates: `PY tools/guard_repo.py` → `guard: 133 files checked, 0 failures` (exit
 → ORIGINAL + BASEROM `OK` (exit 0); `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- make compare`
 → `private/build/yugioh.gba: OK` (exit 0). No new files, so `check-ignore` is unchanged (the four edited
 files are all tracked).
+
+## 2026-10-13 08:07 — Claude: build_matched installs a function's .s only after its self-check
+- Found: a stray `src/funcs/sub_080013D8.c` (local job J0062 wrote into the main checkout) made `make compare`
+  rewrite `private/asm/funcs/sub_080013D8.s` with wrong code; the self-check failed but the file stayed, so the next
+  build (stray gone) produced a ROM with 13 wrong bytes at 0x13DF.
+- Repair: `PY tools/split_disasm.py` (regenerates private/asm/funcs) → `make compare` OK.
+- Fix: `scripts/build_matched.sh` writes `private/build/match/<name>/gen.s`, checks it, then copies it into place.
+- Attack test: wrong 32-byte C for sub_0801C324 → "does NOT reproduce", md5 of private/asm/funcs/sub_0801C324.s
+  unchanged (013feb58…); after restoring the C, `make compare` → `private/build/yugioh.gba: OK`.
