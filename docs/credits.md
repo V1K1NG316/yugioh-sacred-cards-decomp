@@ -57,3 +57,16 @@ Community tools and sources used (name, URL, version/commit, licence).
   `scripts/decomp_tools.sh` bootstraps pip *into that venv* from
   `https://bootstrap.pypa.io/get-pip.py`. Nothing is installed system-wide.
   Licences: MIT / BSD-3-Clause / Apache-2.0 per package.
+
+- **ghidra-mcp** (github.com/bethington/ghidra-mcp, commit
+  `9cc29c0f1efb6c63a7d6898c9a23aff39397f992`, 2026-10-08, version 7.0.0) — a Model Context
+  Protocol server that puts Ghidra's analysis behind an MCP endpoint, so an agent can list
+  functions, read decompiler output and follow cross-references without Ghidra's window being
+  open. Built here in **headless mode** against our own **Ghidra 12.1.4** (above): its Java
+  server runs windowless and the Python bridge (MCP SDK + pydantic, installed into
+  `private/venv`) sits in front of it. Built and run by `scripts/ghidra_mcp_build.sh` and
+  `scripts/ghidra_mcp_server.sh`; built jar, Maven cache, logs and the copied test project all
+  live under `private/` and nothing is committed. Its portable Maven 3.9.9 download
+  (`https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/`) is verified against the
+  `.sha512` Apache publishes next to it; the Ghidra jars the build needs are installed into
+  `private/tools/maven/repo` (never `~/.m2`). Licence: **Apache-2.0** (`LICENSE`).
