@@ -19,6 +19,17 @@ import romcode  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 PY = 'C:/Users/USER/AppData/Local/hermes/hermes-agent/.hermes-runtime/python/cpython-3.11-windows-x86_64-none/python.exe'
 
+# Lessons from the pilot (J0042: reading rules; J0045: the model thought in circles for 2 x 30 min and never
+# re-ran the test, although J0044 had found the fix). Plain string: not passed through str.format.
+PILOT_TIPS = (
+    "HOW TO WORK: run the test after EVERY change, right away. Do not work out bytes, offsets or pool order\n"
+    "in your head; the test and `PY tools/diff_func.py <name>` show them. Think a few lines, then test.\n"
+    "READING RULES:\n"
+    "- `movs rN, #X` then `lsls rN, rN, #Y` loads the number X << Y (e.g. #0x80 then #7 = 0x4000), not X.\n"
+    "- `cmp rA, rB` + branch: write the C comparison with the operands in that same order (`a > b`, not `b < a`).\n"
+    "KNOWN FIX: if the only difference is the ORDER of the `ldr` loads / literal pool words, put one constant\n"
+    "in a local first, e.g. `u32 a = 0x0E004020; return f(x[0], a, 0x80A);`. Test it with each constant.\n")
+
 RECIPE = """Write one C file that compiles with agbcc to exactly the ROM's bytes for the function
 `{name}` at {addr} in Yu-Gi-Oh! The Sacred Cards (GBA). #1 is the ROM's own disassembly, #2 is the
 style to copy, #4 is the only test that counts.
@@ -128,13 +139,14 @@ def main():
         pd = Path(a.pilot_draft).resolve()
         if not pd.exists():
             sys.exit('pilot draft %s does not exist' % pd)
-        text = ("START HERE (pilot job). A stronger model wrote a draft: `%s` (read only).\n"
-                "1. Copy it EXACTLY into `src/funcs/%s.c`. 2. Run the test (step 4). MATCH: commit (step 6), done.\n"
-                "3. FAIL: only SMALL fixes the diff points at (a type, the order of two statements, a cast,\n"
-                "   signed/unsigned). Never rewrite the logic. Re-test after each change; stop after 8 tries.\n"
-                "The full rules follow and still apply.\n\n" % (pd.as_posix(), a.name)) + text
-    if len(text) > 6000:
-        sys.exit('recipe is %d chars, make_job.py allows 6000' % len(text))
+        text = (("START HERE (pilot job). A stronger model wrote a draft: `%s` (read only).\n"
+                 "1. Copy it EXACTLY into `src/funcs/%s.c`. 2. Run the test (step 4). MATCH: commit (step 6), done.\n"
+                 "3. FAIL: only SMALL fixes the diff points at (a type, the order of two statements, a cast,\n"
+                 "   signed/unsigned). Never rewrite the logic. Re-test after each change; stop after 8 tries.\n"
+                 % (pd.as_posix(), a.name)) + PILOT_TIPS
+                + "The full rules follow and still apply.\n\n") + text
+    if len(text) > 7000:
+        sys.exit('recipe is %d chars, make_job.py allows 7000' % len(text))
 
     draft = ROOT / 'private' / 'jobs' / 'drafts' / ('decomp_%s.md' % a.name)
     draft.parent.mkdir(parents=True, exist_ok=True)

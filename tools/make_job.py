@@ -54,8 +54,8 @@ def main():
     ap.add_argument('--created-by', default='deepseek')
     a = ap.parse_args()
     text = a.instructions if a.instructions else Path(a.instructions_file).read_text(encoding='utf-8')
-    if len(text) > 6000:
-        sys.exit('instructions too long (> 6000 chars): split the job')
+    if len(text) > 7000:
+        sys.exit('instructions too long (> 7000 chars): split the job')
     job = {'id': next_id(), 'title': a.title, 'kind': a.kind, 'instructions': text,
            'allowed_paths': a.allowed, 'check': fix_check(a.check), 'max_attempts': a.max_attempts, 'attempts': 0,
            'status': 'queued', 'created_by': a.created_by, 'created_at': time.strftime('%Y-%m-%dT%H:%M:%S')}

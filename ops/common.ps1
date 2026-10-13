@@ -7,7 +7,7 @@ $Conv        = "$Repo\AI_Conversation.md"
 $Logs        = "$Repo\private\logs"
 $Jobs        = "$Repo\private\jobs"
 $DeepSeekModel    = 'deepseek-v4-flash-vision-exp'   # billed as "deepseek-flash" (Matter_Scatter: Flash only)
-$LocalModel       = 'qwen36-agent'                   # Ollama: huihui qwen3.6 abliterated 35B-A3B, tuned sampler
+$LocalModel       = 'qwen36-decomp'                  # Ollama: qwen36-agent + num_predict 16384 (ops/Modelfile.qwen36-decomp, 2026-10-13)
 $BudgetStart      = '2026-10-12T05:40'               # V2 budget window starts here (all DeepSeek use counts)
 $BudgetStopUsd    = 30.0                             # hard stop; $5 of the $35 balance stays in reserve
 New-Item -ItemType Directory -Force $Logs | Out-Null
