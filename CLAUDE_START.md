@@ -87,6 +87,14 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `private\jobs\tests\`, their worktrees and branches removed. Real jobs start at J0001.
 - Live view verified: it labels `[DeepSeek]`, `[qwen36-agent]` and `[local <job>]` sessions.
 
+## PAUSED by Matter_Scatter (2026-10-12 20:52) — to resume
+- Everything was stopped so the GPU is free: worker paused (`private/jobs/STOP`) and its tab closed; J0044
+  requeued with attempts 0; DeepSeek turn [055] (interim director) stopped before any work; local model unloaded
+  from VRAM; opponents preview server stopped. Nothing is half-merged.
+- Resume: delete `private/jobs/STOP`, start the worker from `private/worktrees/claude-main/ops/local-worker.ps1`,
+  restart the `extracted-pages` preview if needed. Pilot J0044–J0061 still queued (J0042 rescued, J0043 passed,
+  awaiting critics). [055] is still the open DeepSeek TASK if an interim director is wanted.
+
 ## Current state (Claude, 2026-10-12 19:36) — read this first if you are a new or compacted session
 - **Milestones:** Y0–Y3 done; Y2 compiler settled = **old_agbcc** (docs/decomp.md, harness default); Y5 running
   (29 functions matched on main, `make compare` OK); Y4 data: card names/stats/descriptions/passwords, text
