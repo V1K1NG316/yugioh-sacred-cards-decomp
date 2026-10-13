@@ -279,4 +279,5 @@ Every labelled guess (A1..An) and where it is marked.
 - **A35 unlisted functions inside an extent** (critic, batch J0134–J0143). `config/functions.csv` gives sub_080073E4 an
   extent of 32 bytes, but bytes 0x080073F4..0x08007403 are another small table-lookup function with no row of its own
   (`0004 0249 800b 4018 0068 7047 …`). Matching is unaffected (build_matched copies the tail with `.incbin`); the
-  function list should be split there (follow-up: scan extents for a second `bx lr`/`push` start).
+  function list should be split there (follow-up: scan extents for a second `bx lr`/`push` start). Also: two bare
+  `bx lr` stubs at 0x08009248 and 0x0800924C inside sub_08009224's extent (critic, batch J0144–J0153).
