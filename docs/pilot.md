@@ -22,4 +22,6 @@ Per function: draft matched as written (y/n), local job pass (y/n), attempts, GP
 DeepSeek drafting cost per function (turn cost / 20). Results table filled in as jobs finish.
 
 ## Results
-(pending)
+| job | function | draft as written | local result | GPU time | notes |
+|---|---|---|---|---|---|
+| J0042 | sub_0800595C | 2/32 bytes off | fail (2 attempts) → Claude rescue (1 edit) | ~55 min | model misread `#0x80 lsl 7` as 0x80, made it worse; draft fix was `b < a` → `a > b`. Two reading rules added to the remaining pilot recipes. |
