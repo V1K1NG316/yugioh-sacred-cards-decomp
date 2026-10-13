@@ -267,3 +267,8 @@ Every labelled guess (A1..An) and where it is marked.
   `volatile u8 *p` alias (sub_0801C324/C344/C378), `*(volatile u16 *)0x04000000` (sub_0801371C, a hardware
   register, where volatile is the real thing). For RAM globals it is NOT evidence that the memory is volatile.
   If those symbols move into a shared header later, declarations must be reconciled.
+- **A32 raw thumb function-pointer literals** (Claude, 2026-10-13). Matched C may store a thumb function's address as
+  the raw odd literal (`0x08003B95` = sub_08003B94 | 1, in sub_08003B58) because C linking `sub_08003B94` gives the even
+  address. Correct for this ROM; breaks silently if code ever moves. A `global.h` convention can replace it later.
+- **A33 call-through prototypes** (Claude, 2026-10-13). `sub_08038E24` is a bare `bx r0` (call the pointer in r0);
+  its `void sub_08038E24(u32)` prototype is a guess, the pointer slot `gUnk_0201CB24` is set by sub_08003B58.
