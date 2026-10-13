@@ -82,6 +82,8 @@ while ($true) {
                Where-Object { $_ -and $_ -ne 'RESULT.md' } | Sort-Object -Unique
     $allowed = @($job.allowed_paths)
     $bad     = @($changed | Where-Object { $f = $_; -not ($allowed | Where-Object { $f -like $_ }) })
+    # RESULT.md / JOB.json must stay uncommitted (J0068 committed RESULT.md and the filter above hid it).
+    $bad    += @(git -C $wt ls-files RESULT.md JOB.json 2>$null | Where-Object { $_ } | ForEach-Object { "COMMITTED:$_" })
     # Only the job's own allowed paths count as strays (DeepSeek may be creating other files there).
     $strays  = @(git -C $Repo status --porcelain --untracked-files=all 2>$null | Where-Object {
                    $l = $_; $mainBefore -notcontains $l -and $l -like '`?`? *' -and
