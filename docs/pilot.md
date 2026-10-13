@@ -47,3 +47,14 @@ DeepSeek drafting cost per function (turn cost / 20). Results table filled in as
 - **Takeaway so far:** near misses cost the local model ~60 min and fail about half the time; Claude (+ permuter)
   fixes them in minutes. Better split: DeepSeek drafts → Claude/permuter fix the misses → local model only
   copies, tests and commits matching drafts (≈2 min each). Recipe now carries KNOWN FIX 2 (`volatile`).
+
+### Status 2026-10-13 08:48 (Claude)
+- Merged so far in the pilot: J0042–J0073 (32 jobs); main has **60** matched functions, `make compare` OK.
+- New flow since ~06:00: DeepSeek drafts 40 at a time ($0.17 and $0.27 per batch; 31/40 and 30/40 match as written)
+  → Claude re-tests every draft and fixes the misses (permuter + hand edits, 1–10 min each; 16 of 19 fixed, 2 parked:
+  sub_08004694, sub_08006128) → the local model copies, tests and commits (1–3 min per job) → batch critics (2 sonnet,
+  10 jobs at a time) → merge.
+- Local model problems seen and fixed: copying into the main checkout (exact `cd`+`pwd`+relative `cp` in the recipe;
+  the worker quarantines strays), committing RESULT.md (worker now fails that), runaway 16k-token replies on near misses
+  (no longer given near misses).
+- Tooling fix: `scripts/build_matched.sh` now installs a function's .s only after its self-check (MODLOG).
