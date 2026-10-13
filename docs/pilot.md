@@ -32,4 +32,4 @@ DeepSeek drafting cost per function (turn cost / 20). Results table filled in as
 | J0047 | sub_08008DB8 | yes | pass, attempt 1 (copy only) | ~1.5 min | same C as sub_08005D0C (duplicate function in the ROM). |
 | J0048 | sub_0800AF3C | yes | pass, attempt 1 (copy only) | ~2 min | |
 | J0049 | sub_0800D0C8 | yes | pass, attempt 1 (copy only) | ~2 min | |
-| J0050 | sub_0801143C | yes | pass, attempt 1 (copy only) | ~2 min | J0046–J0050 reviewed as one batch (2 sonnet critics, no blocker), merged 2026-10-13 05:05; `make compare` OK, 37 matched. |
+| J0050 | sub_0801143C | yes | pass, attempt 1 (copy only) | ~2 min | J0046–J0050 reviewed as one batch (2 sonnet critics, no blocker), merged 2026-10-13 04:57 (c3cca3f); `make compare` OK, 37 matched. |
