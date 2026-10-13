@@ -87,6 +87,11 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `private\jobs\tests\`, their worktrees and branches removed. Real jobs start at J0001.
 - Live view verified: it labels `[DeepSeek]`, `[qwen36-agent]` and `[local <job>]` sessions.
 
+## PAUSED again 2026-10-13 00:38 (Matter_Scatter)
+- Resumed 23:54, J0044 passed (re-checked, awaiting critics in `passed/`; pilot.md row filled), J0043 re-checked OK.
+  J0045 stopped mid-attempt and requeued (attempts 0). STOP file set, worker tab closed, model unloaded.
+  Resume the same way as below.
+
 ## PAUSED by Matter_Scatter (2026-10-12 20:52) — to resume
 - Everything was stopped so the GPU is free: worker paused (`private/jobs/STOP`) and its tab closed; J0044
   requeued with attempts 0; DeepSeek turn [055] (interim director) stopped before any work; local model unloaded
