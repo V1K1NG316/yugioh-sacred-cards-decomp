@@ -479,3 +479,41 @@ exit 1 (tracked) and `git check-ignore -q private/tmp/y5-attempts/sub_080066D0.c
 - Verified ghidra-mcp itself (Claude re-ran DeepSeek's smoke test): 75→86 tools, decompile, xrefs to
   0x08D35C28 (3 in sub_08017CA8), rename in a throwaway copy; server stopped, ports closed.
 - 2026-10-12 20:11: Claude corrected deepseek-turn -Ghidra toolset to `ghidra` (hermes -z validates MCP toolsets by server name, hermes_cli/oneshot.py); `mcp-ghidra` was ignored ("unknown --toolsets entries"). Turn 053 restarted.
+
+## 2026-10-12 20:24 — DeepSeek [054]: what the duel card pools do (branch `deepseek/pools`)
+
+Tools this turn: the ghidra-mcp bridge (one `load_tool_group("xref")` call, then `get_functions` /
+`get_xrefs_to`) plus the already-generated disassembly `private/asm/rom_full.s` and `objdump`
+(`scripts/dis_range.sh`). Every address below was read from the ROM's own code.
+
+Chain (callers, `grep -nE 'bl sub_080(17CA8|17D6C|16234|16254|16360|1644C|16748|164EC|1649C|16768)' private/asm/rom_full.s`):
+
+```
+37710:	bl sub_08016254      37715:	bl sub_08016360      37732:	bl sub_08014094
+37733:	bl sub_0801644C      37734:	bl sub_08016748      37735:	bl sub_080164EC
+37887:	bl sub_08016408      37971:	bl sub_0801649C      38324:	bl sub_08016768
+40505:	bl sub_08017CA8      40616:	bl sub_08017D6C      40728:	bl sub_08016234
+```
+(the 40505/40616 sites are inside `sub_08017B84`, 40616 at `0x08017C9C`) and, from
+`dis_range.sh 0x08016234 0x08016770 thumb`, the exact call sites: `0x08016240` → `sub_08016254`,
+`0x0801624C` → `sub_08016360` (**lost**), `0x08016268` → `sub_08014094`, `0x0801626C` →
+`sub_0801644C`, `0x08016270` → `sub_08016748`, `0x08016274` → `sub_080164EC`, `0x0801636E` →
+`sub_08004348` (ante removal), `0x08016468` → `sub_0801649C`, `0x0801647A` → `sub_0800431C`,
+`0x080164A2` → `sub_0801823C`, `0x080164C0` → `sub_08034628(0, 0x7FF)`, `0x0801664C` →
+`sub_08034628(rec+0x1C, rec+0x1E)`, `0x0801674C` → `sub_08016768`, `0x08016756` → `sub_0801BED4`,
+`0x08017D90` → `sub_08016234`.
+
+Result (details in `docs/game-data.md`, "What the three lists actually do"): a won duel gives **one**
+card (count byte `0x02020D30+0x28` = 1, written at `0x08017CDA`), rolled 0..2047 from record `+0x08`
+(or record `+0x10` = the shared 57-id list at `0x080B80CC` when the player's **ante card**
+`0x02020B34` is one of the 49 ids at `0x080BA280`), added to the collection `0x02020770` and printed
+as duel message 5 "#2 was obtained!"; with no ante card set the win gives no card. The same handler
+adds Deck Capacity (`record+0x18`) and Domino (`sub_08034628(record+0x1C, record+0x1E)` ×
+10^`record+0x20`). A **lost** duel removes one copy of the ante card from the collection
+(`0x0801636E`). The 50 rolls from `+0x0C` go into a second array `0x02020DB0` (open question A28).
+`0x02020B34` is the ante card, not "the card being resolved" ([048] corrected).
+
+Gates: `PY tools/guard_repo.py` → `guard: 133 files checked, 0 failures` (exit 0); `PY tools/hash_rom.py`
+→ ORIGINAL + BASEROM `OK` (exit 0); `wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- make compare`
+→ `private/build/yugioh.gba: OK` (exit 0). No new files, so `check-ignore` is unchanged (the four edited
+files are all tracked).

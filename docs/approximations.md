@@ -221,3 +221,44 @@ Every labelled guess (A1..An) and where it is marked.
   another Yu-Gi-Oh title). Speedrun notes (TASVideos 17496): fixed RNG seed at new game; RNG advances on deck
   shuffle, NPC movement, ante wins, monster destruction; draw-order logic not found by runners. To verify in code:
   the post-duel reward routine and a 10-win fixed-reward table.
+
+- **A26 — RESOLVED (DeepSeek, 2026-10-12, [054])**: the pools are read **only after a duel**, in the
+  won handler `sub_08016254` (reached from `0x08017D6C` → `sub_08016234`), never during one. `+0x08` /
+  `+0x10` give the **one** card the player wins (`+0x28` = 1, set at `0x08017CDA`): `+0x08` (the duel's
+  own list) when the ante card `0x02020B34` is *not* one of the 49 ids at `0x080BA280`, `+0x10` (the
+  shared 57-id list at `0x080B80CC`) when it is; with no ante card set (`0x02020B34 == 0`) no card is
+  given at all. `+0x0C` is rolled 50× into a *second* array (`0x02020DB0`, see A28) and is not part of
+  the visible reward. `0x02020B34` is **not** "the card being resolved": it is the player's **ante
+  card**, set by the trunk menu's "Use as Ante" action (`sub_08007750`: it checks the count for the
+  highlighted card in the collection array `0x02020770` first — `sub_080043C0` at `0x0800775E` — then
+  stores the id at `0x08007794` or `0x080077A6`) and zeroed by `sub_08007604` — and on a loss
+  `sub_08004348` removes one copy of it from the collection (`0x0801636E`). Details and
+  the four hypothesis verdicts: `docs/game-data.md`, "What the three lists actually do".
+
+- **A28 — the purpose of the per-card count array at `0x02020DB0`** (DeepSeek, 2026-10-12, [054]).
+  Verified: it is one byte per card id 1..900 (cap 250 copies, `sub_0801BED4` at `0x0801BED4`), it is
+  zeroed at the start of a new game (`sub_0801BFB8`, called only from the new-game init `sub_08006314`),
+  its writers are the 50 win rolls (`0x08016756`) and the "enter the card's code" machine
+  (`0x080342C6`), and it is copied to/from a menu working copy `0x02021140` by `sub_0801B77C` /
+  `sub_0801B85C`. Not established: what the game shows it for. It is *not* the card collection — that
+  is `0x02020770` (the array the ante loss decrements at `0x0801636E`, the story's gift opcode writes
+  at `0x08032004`, and the win adds to at `0x0801647A`). Candidates: (a) an "obtained at least once"
+  log used by the card-list / trade screens, (b) the shop's stock. Everything above is read off the
+  code; the cheap decisive test is an in-game spot check (win a duel in mGBA, then compare the Trunk
+  entry for the won card against the card-detail screen's count), which needs the emulator, so it is
+  left open. Also unverified for the same reason: the 50 rolls' *effect* is invisible in the win
+  screen, so nothing in the code yet says whether the player sees those 50 cards anywhere.
+
+- **A29 — "the opponent's loot table" vs "the opponent's ante card"** (DeepSeek, 2026-10-12, [054]).
+  The code fixes the mechanics (one roll 0..2047 from a per-duel weighted list, card added to the
+  collection, announced as "#2 was obtained!") and the ante rule for the *player's* own card (lost on
+  a defeat). Whether the card won is fictionally the opponent's ante card or a "drop" cannot be decided
+  from the code: nothing picks or stores an opponent-side ante card at duel start. Labelled, not
+  resolved; the odds are identical either way.
+
+- **A30 — the 10-slot reward array** (DeepSeek, 2026-10-12, [054]). `0x02020D30+0x12` is ten u16 card
+  slots and the win screen loops over all ten (`0x0801630C`, stopping at the first 0), but the count
+  byte `+0x28` is only ever written as 1 (`0x08017CDA`) or 0 (`0x08017F86`), so in this build at most
+  one card can appear. Read as: the reward list is a general "cards obtained" list (up to 10) that
+  this build only ever fills with one entry — for example a leftover from a design where a win could
+  give several cards. Not verifiable from the ROM alone.

@@ -327,11 +327,11 @@ cross-checked against the three code sites that read them:
 | `+0x08` | u32 | weighted list A: `u16 card id, u16 cumulative weight`, ends at the first id 0; rolled 0..2047 | `sub_0801649C` |
 | `+0x0C` | u32 | weighted list B, same shape; rolled 0..29999 | `sub_08016768` (random 0x752F) |
 | `+0x10` | u32 | weighted list C, same shape; rolled 0..2047 | `sub_0801649C` (the other of `+0x34`/`+0x3C` in the duel struct) |
-| `+0x14` | u16, u16 | written `0x1F40/0x1F40` (8000/8000) in all 200 records | unverified (A22) |
-| `+0x18` | u32 | small count; read into `0x02020D30+0x0C` by `sub_08016254` (values 0, 5, 10, 30) | unverified (A22) |
-| `+0x1C` | u16, u16 | life-point-like pair: 2000/2000, 7000/7000, 8000/8000, 500/500, 1000/1000 … | unverified (A22) |
-| `+0x20` | u8 | switch value 0..15 used by `sub_080164EC` to pick a step of 10/100/1000/10000 | purpose unverified (A22) |
-| `+0x24` | u16 | values 32..42 and 139 | unverified (A22) |
+| `+0x14` | u16, u16 | `0x1F40/0x1F40` (8000/8000) in all 200 records — the duel's LP (this game's LP is 8000) | shape verified, the LP use itself not watched in the emulator (A22) |
+| `+0x18` | u32 | **Deck Capacity gained by winning** (0, 5, 10, 30): copied into RAM `+0x0C` at `0x08016266` and added to `0x02020C3C` (cap 99999) by `sub_08014094`; the same screen's duel message 6 is "Your deck capacity increased by #6!" | verified [054] |
+| `+0x1C` | u16, u16 | **Domino (money) prize range**: `sub_08034628(rec+0x1C, rec+0x1E)` at `0x0801664C` | verified [054] |
+| `+0x20` | u8 | **Domino scale**: indexes the 16-entry jump table at `0x08016520` (dispatch at `0x08016508`); case k multiplies by 10^k (case 0 = ×1, case 15 = ×10^18) | verified [054] |
+| `+0x24` | u16 | id passed to `sub_08021E50` at `0x08017D54` when the duel starts (values 32..42, 139) | read site verified; what the id names is not (A22) |
 
 **The drop model** (verified by the two readers, and by content): a list entry is chosen when the
 roll is *below* its cumulative weight, so entry i covers `(w[i-1], w[i]]` of the roll space and its
@@ -339,12 +339,17 @@ chance is `(w[i] - w[i-1]) / (R+1)` with R = 2047 (`+0x08`, `+0x10`) or 29999 (`
 also the invariant the check enforces on all 200 records: every non-empty `+0x08`/`+0x10` list ends
 on weight **2047** (93 / 102 lists), every non-empty `+0x0C` list ends on **29999** (103 lists), all
 ids are 1..900 and weights strictly increase. Decoded example — duel 59 (Bonz), list `+0x08`,
-6 entries, 16.65% each: The Snake Hair (36), Armored Zombie (96), Dragon Zombie (97), Clown Zombie
-(98), Stop Defense (320), Yami (335). Duel 93 (Bandit Keith), list `+0x08`, 15 entries: 7.18% The
-Snake Hair, then ~7.1% each Armored Zombie, Dragon Zombie, Clown Zombie, Stop Defense, Pendulum
-Machine, Launcher Spider, Zoa, Metalzoa, Metalmorph, … (`private/tmp/opp/drops.py`). The list at
-`+0x0C` is an 885-entry near-uniform pool over the whole card list (~0.02% each) — the shared
-"random card" table.
+6 entries: The Snake Hair (36) 16.70% (window 342 of 2048), Armored Zombie (96), Dragon Zombie (97),
+Clown Zombie (98), Stop Defense (320) and Yami (335) 16.65% (window 341) each. Duel 93 (Bandit
+Keith), list `+0x08`, 15 entries: 7.13% The Snake Hair, then ~7.1% each Armored Zombie, Dragon
+Zombie, Clown Zombie, Stop Defense, Pendulum Machine, Launcher Spider, Zoa, Metalzoa, Metalmorph, …
+(`private/tmp/opp/drops.py`). Duel 1 gives card 27 Beaver Warrior with a window of 2047 of 2048
+(99.95%). The narrowest window anywhere in the 93 non-empty `+0x08` lists is **1 of 2048** (duel 18
+and duel 58 both offer card 279 King Fog at 0.0488%) — which is exactly the community figure
+"drops as low as 1/2048", an independent confirmation of this model. The shared list at `+0x0C`
+(0x080C65D4, 885 of the 900 cards) is *not* near-uniform: the per-entry windows fall into five
+classes — 242 cards at 5/30000 (0.0167%), 19 at 6/30000, 186 at 27/30000 (0.09%), 437 at 54/30000
+(0.18%) and 1 at 55/30000. (This corrects the "~0.02% each" figure recorded earlier.)
 
 **Identified opponents** (deck content, checked against the game's own dialogue):
 - **duel 93 = Bandit Keith** — his own line (in the record that carries the `#8` opcode) says "I'm
@@ -375,36 +380,96 @@ either. Opponent names exist only *inside* dialogue text — either as the addre
 line (that is how duels 59/79/93 were identified above). Finding the full duel → NPC → name map
 needs the map/NPC tables, which is a separate job.
 
-**Which of the three lists is read, and what decides it** (DeepSeek 2026-10-12, [048]; code
-evidence, not a guess). At duel start `sub_08017F54` copies the 10 words of `record(duel id)`
-into RAM `0x02020D30+0x2C` word for word, so RAM `+0x34` *is* the record's `+0x08`, `+0x38` is
-`+0x0C` and `+0x3C` is `+0x10` (`sub_08017CA8` re-copies them when a duel is entered). The two
-readers then differ:
-* `+0x0C` (RAM `+0x38`) is read by `sub_08016768` (roll `sub_08034628(0, 0x752F)` = 0..29999),
-  which only `sub_08016748` calls and which only the duel-start routine `sub_08016254` calls;
-  it runs **50 times** at the start of every duel. Its content is not per-duel at all: 103 of
-  the 200 records point at the single shared table `0x080C65D4` (885 ids, uniform ~34 weight
-  each), the other 97 at `0x080C65D0` — the same address 4 bytes lower, where the first id is 0,
-  i.e. an empty list. So `+0x0C` is the tournament-wide "any card" pool.
-* `+0x08` and `+0x10` are read by `sub_0801649C` (roll `sub_08034628(0, 0x7FF)` = 0..2047) and
-  **which of the two it uses is decided by the card id in `0x02020B34`**: it calls
-  `sub_0801823C(id)`, which returns 0 when the id is one of the **49 ids in the table at
-  `0x080BA280`** and 1 otherwise; `r0 == 1` (not in the table) loads RAM `+0x34` = record
-  `+0x08`, `r0 == 0` (in the table) loads RAM `+0x3C` = record `+0x10`. `0x02020B34` is written
-  by the card-resolution path from `sub_0800475C(2)` (the id of the card being resolved,
-  `0x080077xx` region) and zeroed by `sub_08007604`, so at the start of a duel it is 0 — a value
-  that is not in the table — and the opening hand (`sub_0801644C`, 10 cards into RAM `+0x12`)
-  comes from `+0x08`.
-* Content confirms which is which: `+0x08` is per-duel (49 distinct pointers across the 200
-  records; 93 records have a list of 1..74 entries, 107 are empty; duel 59's six zombie cards,
-  duel 93's 15 machine cards), while `+0x10` is one shared list of **57 ids** at `0x080B80CC`
-  in 102 of the records — nearly the same card set as the 49-id table `0x080BA280` (that table
-  has 24, 318, 655, 658, 672, 870 that the list lacks; the list has 14 ids the table lacks),
-  i.e. a curated "special cards" pool.
-So: **`+0x0C` is always read at the start of a duel; `+0x08` versus `+0x10` depends on whether
-the card being resolved in that moment is one of the 49 special cards.** What the two pools are
-*for* in game terms (which one feeds the opponent's hand, which one the card the player wins)
-is not established — labelled A26.
+**What the three lists actually do** (DeepSeek 2026-10-12, [054] — read out of the code with the
+instruction addresses; this settles A26 and A-pack1). The pools are read **only in the win handler
+after a duel**, never during a duel and never to build a deck.
+
+The chain, from the story script to the reward screen:
+| address | what happens |
+|---|---|
+| `0x08031FC6` | story opcode `#8 <id>`: writes the duel id into `0x02020D30+0x10` and calls `sub_08017B84` = "run this duel" |
+| `0x08017B84` → `0x08017CA8` | duel entry (call at `0x08017CAA`): copies `record(id)`'s 10 words into `0x02020D30+0x2C` (`0x08017CB0`-`0x08017CC6`), sets `+0x28 = 1` (`0x08017CDA`; **this byte is the number of cards a win gives**) and `+0x29 = 2`, and plays `record+0x24` as a sound/message (`0x08017D54`) |
+| `0x08017C9C` → `0x08017D6C` | duel over: `0x02020D88+1 == 2` → `+0x29 = 1` (**the player won**), else `+0x29 = 2`; then `sub_08016234` |
+| `0x08016234` | `+0x29 == 1` → `sub_08016254` (**won**), otherwise `sub_08016360` (**lost**) |
+| `0x08016254` | won: `+0x0C = record+0x18` (`0x08016266`), `0x02020C3C += record+0x18` (Deck Capacity, cap 99999, via `sub_08014094`), then the four reward steps below, then the win screen |
+
+**The won card — one roll, one card** (`sub_0801644C`, `0x0801644C`; called at `0x08016268`):
+* guarded by the **ante card** `0x02020B34` (`0x0801645E`): if no ante card is set, the win gives
+  **no card at all** (the player's ante card is chosen with "Use as Ante" in the trunk menu —
+  `sub_08007750` at `0x08007750` stores it, with the game's own prompt strings "This is a low level
+  ante card. Is that okay?" / "Is it okay to exit without choosing an ante card?" at `0x080AA4xx`);
+* it rolls `+0x28` cards = **exactly one** (`0x08016468` → `sub_0801649C`), using
+  `sub_08034628(0, 0x7FF)` = 0..2047 (`0x080164C0`), and stores it in the `+0x12` array
+  (`0x08016472`);
+* **which list is rolled** depends on the ante card: `sub_0801823C(0x02020B34)` (`0x080164A2`)
+  returns 1 when the ante card is *not* one of the 49 ids at `0x080BA280`, and that selects RAM
+  `+0x34` = record **`+0x08`** (the opponent's own per-duel list, 93 of 200 records non-empty);
+  an ante card *from* the 49-id set selects RAM `+0x3C` = record **`+0x10`** (the single shared
+  57-id list at `0x080B80CC`, in 102 records). So: ante an ordinary card → win from the opponent's
+  own list; ante one of the 49 "special" cards → win from the shared special list;
+* the card is added to the player's collection by `sub_0800431C(card,1)` (`0x0801647A`) — the 900-byte
+  per-card **count array at `0x02020770`** (one byte per card id, cap 250 copies), the same array the
+  ante is taken from and that the story's "give the player a card" opcode writes (`0x08032004`).
+
+**The 50 rolls from `+0x0C`** (`sub_08016748`, `0x08016748`, called at `0x08016270`): 50 iterations
+(`cmp r4,#0x31`), each one `sub_08016768` = `sub_08034628(0, 0x752F)` = 0..29999 against record
+`+0x0C` (the shared 885-card list in 103 records, an empty list in the other 97), and each result is
+handed to `sub_0801BED4(card,1)` (`0x08016756`), which adds one copy to a **second** per-card count
+array at **`0x02020DB0`** (cap 250). That is *not* the collection: nothing about it is shown on the
+win screen, and what this array is for is not established (A28). Its only other writer is the
+"enter the card's code" machine (`sub_0803428C`, `0x080342C6`, password tables at `0x08D4F43C` /
+`0x08D5106C`), and it is zeroed at the start of a new game (`sub_0801BFB8` ← `sub_08006314`).
+
+**The rest of the win screen** (all before the display, so all granted even if the screen is
+skipped): `sub_080164EC` (`0x080164EC`) awards **Domino**: `record+0x20` picks a 64-bit scale from
+the jump table at `0x08016520` (case k = ×10^k), `sub_08034628(record+0x1C, record+0x1E)`
+(`0x0801664C`) is the base amount, and `sub_08019B7C` (`0x08019B7C`) adds it to the player's 64-bit
+money at `0x02020DA0` (cap `0x0918:0x4E729FFF`). The screen (`0x080162CA`…) then prints duel message
+2 "Duel victory!", 19/21 ("the opponent is out of LP" / "could not draw"), 6 "Your deck capacity
+increased by #N!" (N = `+0x0C`), the Domino message chosen by magnitude in `sub_08016670` (8/9/10/11,
+12 = "No money was obtained."), and one row per card in the `+0x12` array using duel message
+**5 "#2 was obtained!"** (`0x08016318`-`0x08016344`). `+0x2A` bit 1 (`0x080162D8`) gates the whole
+screen — but not the grants above it.
+
+**A loss** (`sub_08016360`, `0x08016360`): `0x0801636E` (guard at `0x08016368`) — if an ante card is set,
+`sub_08004348(card,1)` takes **one copy of the player's ante card** out of `0x02020770` (the ante is
+paid to the opponent) and the screen shows message 3 "Lost the duel..." + 20/22. No card is given.
+
+**The four hypotheses, decided:**
+* **H1 (community: the pool is the opponent's loot table, one card rolled 0..2047) — CONFIRMED** in
+  mechanics: one card, rolled 0..2047 from a per-duel weighted list, added to the collection and
+  announced with "<card> was obtained!". The community's "as low as 1/2048" is in the data (duel 18 /
+  duel 58, King Fog). The *fiction* ("drop" vs "the opponent's ante card") is not decidable from the
+  code (A29) and does not change the odds.
+* **H2 (Matter_Scatter's memory: pick one of 3 packs of ~5-7 cards, pre-rolled at duel start) —
+  REFUTED.** Nothing is rolled at duel start: duel entry only copies the record and writes `+0x28 = 1`
+  / `+0x29 = 2` (`0x08017CD2`-`0x08017CDA`). The rollers have exactly one caller each
+  (`sub_0801649C` ← `0x08016468`, `sub_08016768` ← `0x0801674C`) and both are inside the *won*
+  handler. The win screen builds a static display list (`sub_08016254`) and reads no input, and the
+  card count is a byte that is only ever written 0 or 1, so at most one "was obtained!" row can
+  appear (A30).
+* **H3 (a fixed reward card per 10 wins) — NOT FOUND.** No per-opponent win counter and no reward
+  table exist in the code paths that grant cards: they are (a) this win roll, (b) the story opcode at
+  `0x08032004`, which adds one copy of a card id taken from the script's own operands (the mechanism
+  a scripted fixed reward would use), (c) the code machine `sub_0803428C`, and (d) the 50 rolls into
+  `0x02020DB0`. The story script *can* count wins — the `#8` opcode's handler reads the win flag
+  `+0x29` back at `0x08031FE4` and branches on it — so if such a rule exists it lives in the script
+  data, not in the duel code. Not verified either way.
+* **H4 (the pools feed the opponent's deck or draws) — REFUTED.** The opponent's deck is the fixed
+  40-id list at `record+0x04` (A25) and no pool is read during the duel; the only readers of the
+  copied pool words are `sub_0801649C` (RAM `+0x34`/`+0x3C`) and `sub_08016768` (RAM `+0x38`), both
+  reachable only from the won handler.
+
+**Worked example (C2 of [054]) — duel 59 (Bonz), record at `0x080B5494`:** ante an ordinary card
+(not one of the 49) → one roll 0..2047 against `record+0x08` = `0x080B74BC`, 6 entries: The Snake
+Hair (36) 16.70%, Armored Zombie (96) 16.65%, Dragon Zombie (97) 16.65%, Clown Zombie (98) 16.65%,
+Stop Defense (320) 16.65%, Yami (335) 16.65% — and nothing else is possible. Ante one of the 49
+special cards instead → the same duel rolls the shared 57-card list at `0x080B80CC` (all 57 entries
+~1.71% each, e.g. 644 Flame Viper, 558 Pot the Trick, 192 Key Mace, 289 Change Slime, 548 Bone
+Mouse), i.e. the opponent's own list is then not used at all. Either way: **one** card, plus
+`record+0x18` = 10 Deck Capacity and `record+0x1C..+0x1E` = 400..400 × 10^(record+0x20 = 0) = 400
+Domino for this duel. Both lists are enumerable for all 200 duels, so the page can show real odds;
+the 50 rolls from `+0x0C` are not player-visible and must not be shown as drop odds.
 
 **Tools**: extractor `tools/duel_table.py` → `private/extracted/duel_table.tsv` (200 rows, one per
 record), `duel_decks.tsv` (card ids + names per duel, 42 distinct decks) and `duel_scripts.tsv`
