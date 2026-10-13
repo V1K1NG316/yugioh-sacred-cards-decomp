@@ -33,3 +33,4 @@ DeepSeek drafting cost per function (turn cost / 20). Results table filled in as
 | J0048 | sub_0800AF3C | yes | pass, attempt 1 (copy only) | ~2 min | |
 | J0049 | sub_0800D0C8 | yes | pass, attempt 1 (copy only) | ~2 min | |
 | J0050 | sub_0801143C | yes | pass, attempt 1 (copy only) | ~2 min | J0046–J0050 reviewed as one batch (2 sonnet critics, no blocker), merged 2026-10-13 04:57 (c3cca3f); `make compare` OK, 37 matched. |
+| J0051 | sub_0801351C | no (32/34, tested with agbcc before old_agbcc was settled) | fail: 2 × 30-min timeout on `qwen36-decomp` (no transcript: the worker only keeps logs of attempts that end normally) | ~60 min | Claude rescue, 1 try: swap the if/else (`> 0x48` → subtract, else copy); old_agbcc already drops the `push {lr}`. The model works at ~50 tok/s but fills 50k+ tokens of context per attempt. |
