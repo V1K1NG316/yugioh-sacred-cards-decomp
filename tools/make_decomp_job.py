@@ -142,10 +142,12 @@ def main():
         if not pd.exists():
             sys.exit('pilot draft %s does not exist' % pd)
         text = (("START HERE (pilot job). A stronger model wrote a draft: `%s` (read only).\n"
-                 "1. Copy it EXACTLY into `src/funcs/%s.c`. 2. Run the test (step 4). MATCH: commit (step 6), done.\n"
+                 "1. Copy it with exactly this command, run in your worktree (relative target, NOT D:/Yugioh_DeComp_V2/src):\n"
+                 "   `cp %s src/funcs/%s.c`\n"
+                 "2. Run the test (step 4). MATCH: commit (step 6), done.\n"
                  "3. FAIL: only SMALL fixes the diff points at (a type, the order of two statements, a cast,\n"
                  "   signed/unsigned). Never rewrite the logic. Re-test after each change; stop after 8 tries.\n"
-                 % (pd.as_posix(), a.name)) + PILOT_TIPS
+                 % (pd.as_posix(), pd.as_posix(), a.name)) + PILOT_TIPS
                 + "The full rules follow and still apply.\n\n") + text
     if len(text) > 7000:
         sys.exit('recipe is %d chars, make_job.py allows 7000' % len(text))
