@@ -44,7 +44,14 @@
     <label class="chk"><input id="named" type="checkbox"> only named opponents</label>
   </div>
 </header>
-<main id="list"></main>
+<main>
+  <details class="howto" open><summary><span class="dn">How prizes work (verified in the game code)</span></summary><div style="padding:0 14px 12px">
+    <p>Win a duel and you receive <b>exactly one card</b>, drawn from the opponent's <b>normal-ante prize pool</b> (out of 2048). If the card you put up as <b>ante</b> is one of 49 weak cards, the prize comes from the <b>shared weak-ante pool</b> instead. <b>With no ante card, a win gives no card.</b> Lose, and you lose one copy of your ante card.</p>
+    <p class="sub">Weak ante cards: <span id="weak"></span></p>
+    <p class="sub">The 30,000-roll list is a hidden counter the game keeps per card, not a prize; its purpose is unknown.</p>
+  </div></details>
+  <div id="list"></div>
+</main>
 <div id="tip"></div>
 <script>
 const DATA = __DATA__;
@@ -62,7 +69,7 @@ function sharedSection() {
   let h = '';
   for (const [i, s] of Object.entries(DATA.shared)) {
     if (s.placeholder) continue;
-    h += '<details><summary><span class="dn">Shared pool #' + sharedNo(i) + '</span><span class="id">' + s.items.length + ' cards · used by ' + s.n + ' duels</span></summary><div class="body"><div>' + listTable(s.items) + '</div></div></details>';
+    h += '<details><summary><span class="dn">' + esc(s.label) + ' (shared)</span><span class="id">' + s.items.length + ' cards · used by ' + s.n + ' duels</span></summary><div class="body"><div>' + listTable(s.items) + '</div></div></details>';
   }
   return h;
 }
@@ -83,14 +90,14 @@ function render() {
     for (const l of du.lists) {
       if (l.shared !== undefined) {
         const s = DATA.shared[l.shared];
-        h += '<div><h3>' + esc(l.label) + '</h3><p class="sub">' + (s.placeholder ? 'Placeholder (' + esc(cardName(s.items[0][0])) + ' only), shared by ' + s.n + ' duels: probably not used for this duel.' : 'Shared pool #' + sharedNo(l.shared) + ' (' + s.items.length + ' cards, used by ' + s.n + ' duels): see the top of the page.') + '</p></div>';
+        h += '<div><h3>' + esc(l.label) + '</h3><p class="sub">' + (s.placeholder ? 'Always ' + esc(cardName(s.items[0][0])) + ' (single-card list, shared by ' + s.n + ' duels).' : 'Shared list ('  + s.items.length + ' cards, used by ' + s.n + ' duels): see the top of the page.') + '</p></div>';
         continue;
       }
       h += '<div><h3>' + esc(l.label) + ' · ' + l.items.length + ' cards</h3>' + listTable(l.items) + '</div>';
     }
     out.push(h + '</div></details>');
   }
-  list.innerHTML = (q ? '' : sharedSection()) + out.join('') + '<p class="note">Each pool is a weighted card list: % = the card\'s share of the game\'s roll (0–2047, or 0–29999 for pool B). The game reads these pools when a duel starts (pool A, or pool C when the card id is in a 49-id set; pool B half the time), so they may decide the opponent\'s cards rather than your rewards: their exact purpose is still being confirmed. Names come from the duel\'s own dialogue (confidence shown); otherwise the opponent\'s pre-duel line is quoted.</p>';
+  list.innerHTML = (q ? '' : sharedSection()) + out.join('') + '<p class="note">% = the card\'s share of the game\'s prize roll (0–2047): the chance that a win gives you that card. Rolls and lists are read from the Early Days Collection ROM. Names come from the duel\'s own dialogue (confidence shown); otherwise the opponent\'s pre-duel line is quoted.</p>';
 }
 document.addEventListener('mousemove', e => {
   const t = e.target.closest && e.target.closest('.card');
@@ -99,6 +106,7 @@ document.addEventListener('mousemove', e => {
   tip.innerHTML = '<b>' + esc(c.n) + '</b> #' + t.dataset.c + '<br>' + (c.atk == null ? esc(c.type || 'Spell/Trap') : 'ATK ' + c.atk + ' / DEF ' + c.def + ' · Lv ' + c.lv + '<br>' + esc(c.type) + ' · ' + esc(c.attr)) + '<br>Cost ' + c.cost;
   tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 14, innerWidth - 290) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
 });
+document.getElementById('weak').innerHTML = DATA.weakAnte.map(cardCell).join(', ');
 document.getElementById('q').addEventListener('input', render);
 document.getElementById('named').addEventListener('change', render);
 render();

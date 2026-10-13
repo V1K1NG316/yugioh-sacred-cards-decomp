@@ -20,7 +20,7 @@ ROM = ROOT / 'private' / 'baserom.gba'
 OUT = ROOT / 'private' / 'extracted' / 'opponents.html'
 NAMES_TSV = ROOT / 'private' / 'extracted' / 'duel_names.tsv'
 B = 0x08000000
-LISTS = (('Card pool A (this duel)', 8, 2048), ('Card pool B (rare, shared)', 12, 30000), ('Card pool C (shared)', 16, 2048))
+LISTS = (('Prize after a win (normal ante)', 8, 2048), ('Hidden counter (not a prize)', 12, 30000), ('Prize after a win (weak ante)', 16, 2048))
 
 
 def main():
@@ -94,7 +94,8 @@ def main():
     for items, n in use.most_common():
         if n >= 20 and items not in sid:
             sid[items] = len(shared)
-            shared[len(shared)] = {'n': n, 'items': list(items), 'placeholder': len(items) == 1}
+            role = next(label for _, _, ls in raw for label, _, it in ls if it == items)
+            shared[len(shared)] = {'n': n, 'items': list(items), 'placeholder': len(items) == 1, 'label': role}
     duels = []
     for k, deck, lists in raw:
         if not any(deck) or set(deck) == {0}:
@@ -109,7 +110,10 @@ def main():
         duels.append({'id': k, **names.get(k, {}), 'deck': sorted(deck.items(), key=lambda x: (-x[1], x[0])),
                       'lists': out})
 
-    data = json.dumps({'cards': cards, 'duels': duels, 'shared': shared}, separators=(',', ':'))
+    # the 49 "weak ante" card ids (0x080BA280): anteing one of these switches the prize to the shared pool C
+    weak_ante = [u16(0x080BA280 + 2 * i) for i in range(49)]
+    data = json.dumps({'cards': cards, 'duels': duels, 'shared': shared, 'weakAnte': weak_ante},
+                      separators=(',', ':'))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(PAGE.replace('__DATA__', data), encoding='utf-8', newline='\n')
     named = sum(1 for x in duels if 'name' in x)
