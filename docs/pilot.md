@@ -34,3 +34,16 @@ DeepSeek drafting cost per function (turn cost / 20). Results table filled in as
 | J0049 | sub_0800D0C8 | yes | pass, attempt 1 (copy only) | ~2 min | |
 | J0050 | sub_0801143C | yes | pass, attempt 1 (copy only) | ~2 min | J0046–J0050 reviewed as one batch (2 sonnet critics, no blocker), merged 2026-10-13 04:57 (c3cca3f); `make compare` OK, 37 matched. |
 | J0051 | sub_0801351C | no (32/34, tested with agbcc before old_agbcc was settled) | fail: 2 × 30-min timeout on `qwen36-decomp` (no transcript: the worker only keeps logs of attempts that end normally) | ~60 min | Claude rescue, 1 try: swap the if/else (`> 0x48` → subtract, else copy); old_agbcc already drops the `push {lr}`. The model works at ~50 tok/s but fills 50k+ tokens of context per attempt. |
+| J0052 | sub_0801371C | "yes" in batch 1, but that test ran under agbcc; under old_agbcc 12/30 off | fail: 2 × 30-min timeout; replies hit the 16384-token cap (runaway thinking) | ~60 min | Claude rescue: `*(volatile u16 *)0x04000000 |= 0x1000;` (hardware register). |
+
+### 2026-10-13 06:00–06:55 (Claude, overnight): re-test before queueing
+- Re-tested every queued draft in a scratch worktree (`private/worktrees/claude-draftcheck`): batch 2 (DeepSeek
+  [057], tested under old_agbcc) 31/31 "matched" really match. Batch 1 (tested under agbcc, before old_agbcc was
+  settled) had 5 "matched" drafts that do not match under old_agbcc (register choice): J0052, J0058–J0061.
+- Fixed all 9 near misses in 1–5 min each, before the local model saw them: `volatile` (permuter found it on
+  sub_08018150, then applied by hand to sub_0801371C and the sub_0801C324/C344/C378 trio), comparison sense
+  (sub_08014610), store inside each branch (sub_080144C8), `b * 32` not `b >> 3` (sub_08003138). Originals kept
+  as `private/drafts/<name>.c.orig`; `private/drafts/NOTES.txt`.
+- **Takeaway so far:** near misses cost the local model ~60 min and fail about half the time; Claude (+ permuter)
+  fixes them in minutes. Better split: DeepSeek drafts → Claude/permuter fix the misses → local model only
+  copies, tests and commits matching drafts (≈2 min each). Recipe now carries KNOWN FIX 2 (`volatile`).
