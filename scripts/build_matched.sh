@@ -73,7 +73,7 @@ for c in src/funcs/*.c; do
       printf '	.incbin "private/baserom.gba", %d, %s	@ %s ROM bytes past the compiled function (A5 extent; may hold unlisted code)\n' "$(( addr - 0x08000000 + L1 ))" "$SLACK" "$SLACK"
     fi
     echo "	.syntax unified"
-  } > "private/asm/funcs/$name.s"
+  } > "$W/gen.s"   # checked first, installed into private/asm/funcs only if it reproduces the ROM
 
   # Self-check, independent of make compare: this file alone, assembled in the same context as
   # rom.s and linked at the function's address, must reproduce the ROM's bytes over the whole
@@ -82,7 +82,7 @@ for c in src/funcs/*.c; do
     echo '	.include "asm/macros.inc"'
     echo '	.syntax unified'
     echo '	.text'
-    echo "	.include \"private/asm/funcs/$name.s\""
+    echo "	.include \"$W/gen.s\""
   } > "$W/shim.s"
   arm-none-eabi-as -I . -o "$W/shim.o" "$W/shim.s"
   bash scripts/link_at.sh "$W" shim "$W/shim.o" "$addr"
@@ -92,8 +92,10 @@ for c in src/funcs/*.c; do
     echo "build_matched: $name does NOT reproduce its $EXTENT ROM bytes:" >&2
     head -c "$EXTENT" "$W/shim.bin" | od -An -tx1 >&2
     od -An -tx1 "$W/shim_rom.bin" >&2
+    # private/asm/funcs/$name.s is left untouched (2026-10-13: a stray C file once left a wrong .s behind)
     exit 1
   fi
+  cp "$W/gen.s" "private/asm/funcs/$name.s"
 
   printf 'build_matched: %-16s %s at %s: %s bytes of C + %s of ROM tail = %s\n' \
       "$name" "$c" "$addr" "$L1" "$SLACK" "$EXTENT"
