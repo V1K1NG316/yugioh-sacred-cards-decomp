@@ -262,3 +262,8 @@ Every labelled guess (A1..An) and where it is marked.
   one card can appear. Read as: the reward list is a general "cards obtained" list (up to 10) that
   this build only ever fills with one entry — for example a leftover from a design where a win could
   give several cards. Not verifiable from the ROM alone.
+- **A31 `volatile` as a matching idiom** (Claude, 2026-10-13). Some matched C uses `volatile` only because
+  old_agbcc then picks the ROM's registers / load order: `extern volatile u8 gUnk_02020B00[]` (sub_08018150), a
+  `volatile u8 *p` alias (sub_0801C324/C344/C378), `*(volatile u16 *)0x04000000` (sub_0801371C, a hardware
+  register, where volatile is the real thing). For RAM globals it is NOT evidence that the memory is volatile.
+  If those symbols move into a shared header later, declarations must be reconciled.
