@@ -87,20 +87,21 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `private\jobs\tests\`, their worktrees and branches removed. Real jobs start at J0001.
 - Live view verified: it labels `[DeepSeek]`, `[qwen36-agent]` and `[local <job>]` sessions.
 
-## PAUSED again 2026-10-13 02:25 (Matter_Scatter) — earlier pause 00:38
-- Resumed 23:54, J0044 passed (re-checked, awaiting critics in `passed/`; pilot.md row filled), J0043 re-checked OK.
-  J0045 stopped mid-attempt and requeued (attempts 0). STOP file set, worker tab closed, model unloaded.
-  02:25: J0045 attempt 1 timed out (30 min; it also wrote a stray copy into the main checkout, quarantined);
-  attempt 2 was stopped at start, requeued with attempts 1 (one try left before rescue).
-  Resume the same way as below.
-
-## PAUSED by Matter_Scatter (2026-10-12 20:52) — to resume
-- Everything was stopped so the GPU is free: worker paused (`private/jobs/STOP`) and its tab closed; J0044
-  requeued with attempts 0; DeepSeek turn [055] (interim director) stopped before any work; local model unloaded
-  from VRAM; opponents preview server stopped. Nothing is half-merged.
-- Resume: delete `private/jobs/STOP`, start the worker from `private/worktrees/claude-main/ops/local-worker.ps1`,
-  restart the `extracted-pages` preview if needed. Pilot J0044–J0061 still queued (J0042 rescued, J0043 passed,
-  awaiting critics). [055] is still the open DeepSeek TASK if an interim director is wanted.
+## RUNNING — state at 2026-10-13 11:23 (Claude) — read first after a compaction
+- **Flow (works, keep it):** DeepSeek drafts 40 small functions per turn (`[NNN] TASK pilot batch N`, $0.03–0.27 each)
+  → Claude re-tests every draft in the scratch worktree `private/worktrees/claude-draftcheck` (copy draft into its
+  src/funcs, `PY tools/match_func.py <name>`, delete) and fixes misses (permuter `tools/permute_func.sh <name> 8 --base
+  private/drafts/<name>.c --jobs 2` with `MSYS_NO_PATHCONV=1`, then hand cleanup; originals kept as `.c.orig`,
+  `private/drafts/NOTES.txt`) → `PY tools/make_decomp_job.py --pilot-draft D:/.../private/drafts/<name>.c <name>`
+  (run from the main checkout at main) → local worker copies/tests/commits (1–3 min) → every 10 passed jobs: two
+  sonnet critics (requirements + adversary) → merge with `git merge --no-ff local/Jxxxx` in claude-main, remove
+  worktree, JSON to `merged/` → `make compare` in the main checkout (`git checkout --detach main` first).
+- **Worker** now runs as a background Bash process (NOT a terminal tab: tabs prompt Matter_Scatter's phone over
+  Remote Control), console log `private/logs/worker-console.log`; model `qwen36-decomp` (ops/Modelfile.qwen36-decomp).
+  DeepSeek turns also via background Bash: `powershell -File ops/deepseek-turn.ps1 -Entry NNN > <scratch>/dsNNN.out`.
+- Numbers: 150 functions matched on main, `make compare` OK; ~85 jobs queued; DeepSeek $6.53 of $30.
+- Parked (not matched): sub_08004694, sub_08009160. Follow-ups: A34 shared header, A35 split extents.
+- Matter_Scatter (asleep) approved: DeepSeek use, accepting agents' commands; no approval prompts to the phone.
 
 ## Current state (Claude, 2026-10-12 19:36) — read this first if you are a new or compacted session
 - **Milestones:** Y0–Y3 done; Y2 compiler settled = **old_agbcc** (docs/decomp.md, harness default); Y5 running
