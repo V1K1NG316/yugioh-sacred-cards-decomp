@@ -87,6 +87,15 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `private\jobs\tests\`, their worktrees and branches removed. Real jobs start at J0001.
 - Live view verified: it labels `[DeepSeek]`, `[qwen36-agent]` and `[local <job>]` sessions.
 
+## PAUSED by Matter_Scatter at 2026-10-13 12:29 — to resume
+- Stopped: worker (background process), permuter run on the medium near misses (sub_080058AC, sub_08003B18 done or
+  partial; sub_080064C8 interrupted; sub_08001410, sub_08005BCC not run), job watch. `private/jobs/STOP` exists; J0203
+  requeued; local model unloaded (GPU 0%). Nothing half-merged; main = 180 matched, `make compare` OK.
+- Waiting: 9 passed jobs (J0194–J0202) need the batch critics; 56 queued. Medium test M1: 7/40 drafts matched.
+- Resume: `rm private/jobs/STOP`; start the worker with Bash run_in_background:
+  `powershell -ExecutionPolicy Bypass -File 'D:\Yugioh_DeComp_V2\private\worktrees\claude-main\ops\local-worker.ps1' > private/logs/worker-console.log 2>&1`;
+  re-run the permuter loop on the medium near misses; answer Matter_Scatter's timeframe question with its results.
+
 ## RUNNING — state at 2026-10-13 11:23 (Claude) — read first after a compaction
 - **Flow (works, keep it):** DeepSeek drafts 40 small functions per turn (`[NNN] TASK pilot batch N`, $0.03–0.27 each)
   → Claude re-tests every draft in the scratch worktree `private/worktrees/claude-draftcheck` (copy draft into its
