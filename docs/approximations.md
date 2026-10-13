@@ -272,3 +272,7 @@ Every labelled guess (A1..An) and where it is marked.
   address. Correct for this ROM; breaks silently if code ever moves. A `global.h` convention can replace it later.
 - **A33 call-through prototypes** (Claude, 2026-10-13). `sub_08038E24` is a bare `bx r0` (call the pointer in r0);
   its `void sub_08038E24(u32)` prototype is a guess, the pointer slot `gUnk_0201CB24` is set by sub_08003B58.
+- **A34 per-file prototypes** (Claude, 2026-10-13). Each `src/funcs/*.c` declares its own callees and externs, so the
+  same symbol can carry different types in different files (e.g. `sub_080061A8` is `u32` where defined, `void` in
+  sub_08006220.c; `gUnk_0201FCC0` is `u8[]` in most files, `u16[]` in sub_080044A4/FC). Byte-safe today (separate
+  compilation units, unused results); to unify when a shared header is introduced (follow-up, not started).
