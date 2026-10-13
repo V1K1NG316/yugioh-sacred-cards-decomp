@@ -28,7 +28,9 @@ PILOT_TIPS = (
     "- `movs rN, #X` then `lsls rN, rN, #Y` loads the number X << Y (e.g. #0x80 then #7 = 0x4000), not X.\n"
     "- `cmp rA, rB` + branch: write the C comparison with the operands in that same order (`a > b`, not `b < a`).\n"
     "KNOWN FIX: if the only difference is the ORDER of the `ldr` loads / literal pool words, put one constant\n"
-    "in a local first, e.g. `u32 a = 0x0E004020; return f(x[0], a, 0x80A);`. Test it with each constant.\n")
+    "in a local first, e.g. `u32 a = 0x0E004020; return f(x[0], a, 0x80A);`. Test it with each constant.\n"
+    "KNOWN FIX 2: if only the REGISTER numbers differ, try `volatile`: hardware registers always\n"
+    "(`*(volatile u16 *)0x04000000 |= 0x1000;`), RAM globals sometimes (`extern volatile u8 gUnk_02020B00[];`).\n")
 
 RECIPE = """Write one C file that compiles with agbcc to exactly the ROM's bytes for the function
 `{name}` at {addr} in Yu-Gi-Oh! The Sacred Cards (GBA). #1 is the ROM's own disassembly, #2 is the
