@@ -72,7 +72,7 @@ while ($true) {
     $draftCp = [regex]::Match([string]$job.instructions, 'cp (D:/\S+?\.c) src/funcs/(sub_[0-9A-F]+)\.c')
     if ($Script -and $draftCp.Success) {
         # Script mode: the same copy the recipe asks for, then commit; the judge below decides as for a model run.
-        Copy-Item -LiteralPath $draftCp.Groups[1].Value "$wt\srcuncs\$($draftCp.Groups[2].Value).c" -Force
+        Copy-Item -LiteralPath $draftCp.Groups[1].Value "$wt\src\funcs\$($draftCp.Groups[2].Value).c" -Force
         git -C $wt add "src/funcs/$($draftCp.Groups[2].Value).c" 2>&1 | Out-Null
         git -C $wt commit -q -m "decompile $($draftCp.Groups[2].Value) (script copy of vetted draft)" 2>&1 | Out-Null
         "script mode: copied $($draftCp.Groups[1].Value)" | Set-Content "$wt\RESULT.md" -Encoding utf8
