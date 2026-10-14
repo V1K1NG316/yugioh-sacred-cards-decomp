@@ -96,6 +96,14 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `powershell -ExecutionPolicy Bypass -File 'D:\Yugioh_DeComp_V2\private\worktrees\claude-main\ops\local-worker.ps1' > private/logs/worker-console.log 2>&1`;
   re-run the permuter loop on the medium near misses; answer Matter_Scatter's timeframe question with its results.
 
+## Decisions by Matter_Scatter (2026-10-14 05:03) — current flow
+- **Plan A:** DeepSeek drafts batches; Claude re-tests every draft; **the permuter runs on every miss** (free, CPU);
+  matched drafts are queued. (A DeepSeek "researcher + expert" subagent variant was discussed and NOT chosen for now.)
+- **Script mode:** the worker runs with `-Script` (copies a vetted draft, commits; same judge) — ~6 s per job instead
+  of ~90 s with the model. The local model is free for other work.
+- **Reviews:** script copies of Claude-vetted small drafts → ONE combined sonnet critic per 20 jobs. Medium functions
+  and anything hand-fixed (`private/drafts/<name>.c.orig` exists) → the usual two critics.
+
 ## RUNNING — state at 2026-10-13 11:23 (Claude) — read first after a compaction
 - **Flow (works, keep it):** DeepSeek drafts 40 small functions per turn (`[NNN] TASK pilot batch N`, $0.03–0.27 each)
   → Claude re-tests every draft in the scratch worktree `private/worktrees/claude-draftcheck` (copy draft into its
