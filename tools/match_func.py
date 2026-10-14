@@ -128,8 +128,15 @@ def main():
     if not src.exists():
         sys.exit('match_func: no such file: %s' % src)
     # Real C only: inline asm could paste the ROM bytes in and "match" without decompiling anything.
-    if re.search(r'\b(asm|__asm__|__asm)\b', src.read_text(encoding='utf-8', errors='replace')):
-        sys.exit('match_func: FAIL %s uses inline asm; write the function in plain C' % src.name)
+    # Two FAKEMATCH forms are allowed (as in the EDS decomp, 2026-10-14): register pinning `register T x asm("rN")`
+    # and an empty asm with only operand constraints `asm("" : "+r"(x))`. Neither contains an instruction, so no
+    # ROM bytes can be pasted in. Any other asm is still refused.
+    text = src.read_text(encoding='utf-8', errors='replace')
+    text = re.sub(r'\b(?:asm|__asm__|__asm)\s*\(\s*"r(?:[0-9]|1[0-2])"\s*\)', '', text)
+    text = re.sub(r'\b(?:asm|__asm__|__asm)\s*(?:volatile\s*|__volatile__\s*)?\(\s*""\s*(?::[^;()]*(?:\([^;()]*\)[^;()]*)*)*\)', '', text)
+    if re.search(r'\b(asm|__asm__|__asm)\b', text):
+        sys.exit('match_func: FAIL %s uses inline asm; write the function in plain C '
+                 '(only `register T x asm("rN")` and empty `asm("" : "+r"(x))` are allowed)' % src.name)
 
     work, keep = run_dir_for(a, main_dir, name)
     try:

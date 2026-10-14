@@ -71,3 +71,6 @@ Community tools and sources used (name, URL, version/commit, licence).
   `.sha512` Apache publishes next to it; the Ghidra jars the build needs are installed into
   `private/tools/maven/repo` (never `~/.m2`). Licence: **Apache-2.0** (`LICENSE`).
 - git-filter-repo 2.47.0 (MIT, github.com/newren/git-filter-repo): scrubs the Windows username before publishing (in private/venv).
+- **eds-decomp** (github.com/CosmicScribe64/eds-decomp, MIT): matching decomp of Yu-Gi-Oh! The Eternal Duelist Soul.
+  Ideas adopted 2026-10-14: FAKEMATCH register pinning / empty-constraint asm rule, sibling search, m2c drafts,
+  register-allocation oracle (planned). Cloned read-only in private/ref/ (never committed).
