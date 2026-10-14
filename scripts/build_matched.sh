@@ -113,10 +113,11 @@ for c in src/funcs/*.c; do
     exit 1
   fi
   cp "$W/gen.s" "private/asm/funcs/$name.s"
+  echo "$KEY" > "$W/cache.key"
 
   printf 'build_matched: %-16s %s at %s: %s bytes of C + %s of ROM tail = %s\n' \
       "$name" "$c" "$addr" "$L1" "$SLACK" "$EXTENT"
   MATCHED=$(( MATCHED + 1 ))
   BYTES=$(( BYTES + L1 ))
 done
-echo "build_matched: $MATCHED C function(s), $BYTES bytes from C linked into the ROM"
+echo "build_matched: $MATCHED C function(s), $BYTES bytes from C linked into the ROM (${CACHED:-0} unchanged, reused)"
