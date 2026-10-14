@@ -25,7 +25,11 @@ function Get-UnixNow { [double](([DateTimeOffset]::UtcNow).ToUnixTimeSeconds()) 
 # Live account balance in USD (DeepSeek /user/balance); -1 if it cannot be read.
 function Get-DeepSeekBalance {
     try {
-        $j = & $Py -I "$Repo	ools\deepseek_balance.py" --json | ConvertFrom-Json
-        return [double](($j.balance_infos | Where-Object { $_.currency -eq 'USD' } | Select-Object -First 1).total_balance)
+        $out = & $Py -I (Join-Path $Repo "tools\deepseek_balance.py") --json 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $out) { return -1 }
+        $j = $out | ConvertFrom-Json
+        $b = ($j.balance_infos | Where-Object { $_.currency -eq 'USD' } | Select-Object -First 1).total_balance
+        if ($null -eq $b) { return -1 }
+        return [double]$b
     } catch { return -1 }
 }
