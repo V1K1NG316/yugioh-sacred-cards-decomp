@@ -44,6 +44,11 @@ while read -r s; do
       exit 2
     fi
   fi
+  # A Thumb function's address carries the Thumb bit (|1), as the assembler gives its label in the real
+  # build: pool words like `.4byte sub_08003B94` hold 0x08003B95 in the ROM. `bl` ignores the bit.
+  if awk -F, -v n="$s" '$2 == n && $3 == "thumb" {found = 1} END {exit !found}' "$(dirname "$0")/../config/functions.csv"; then
+    addr=$(printf '0x%08X' $(( addr | 1 )))
+  fi
   printf '%s\n' "$s" >> "$OUT.symrefs"
   DEFS+=(--defsym "$s=$addr")
 done < <(arm-none-eabi-nm -u "$TMP/pass1.o" | awk '{print $NF}')
