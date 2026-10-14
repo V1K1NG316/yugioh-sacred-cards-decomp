@@ -96,6 +96,13 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `powershell -ExecutionPolicy Bypass -File 'D:\Yugioh_DeComp_V2\private\worktrees\claude-main\ops\local-worker.ps1' > private/logs/worker-console.log 2>&1`;
   re-run the permuter loop on the medium near misses; answer Matter_Scatter's timeframe question with its results.
 
+## PAUSED by Matter_Scatter 2026-10-14 13:10
+- Stopped: worker (STOP file), drafters, permuter, reviewers. main = 719 matched, `make compare` OK (see MODLOG/last run).
+- Waiting: 16 queued, 19 passed (incl. style-variant / permuter fixes -> two critics; others one critic per 20).
+- Style-variant experiment: sty1 5/16, sty2 10/16 medium misses matched by restyled drafts (before permuter).
+- Resume: `rm private/jobs/STOP`; worker via Bash background `powershell -File ...\ops\local-worker.ps1 -Script > private/logs/worker-console.log`;
+  review/merge, permute remaining misses (b11*, sty misses), publish (`bash private/publish/publish.sh`).
+
 ## HANDOFF 2026-10-14 07:21 (Claude hit the usage limit) — read first
 - main: 554 matched, make compare OK, GitHub pushed at 521 (publish: `bash private/publish/publish.sh`, scrubbed).
 - Still running unattended: script worker (`-Script`), DeepSeek drafters b11c + style variants sty1/sty2
