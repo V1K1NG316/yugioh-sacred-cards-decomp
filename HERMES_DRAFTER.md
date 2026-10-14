@@ -20,6 +20,17 @@ For each function `<name>` in your list:
    `D:/Yugioh_DeComp_V2/private/drafts/<name>.log`.
 Generator scripts for one repeated shape are fine (as in batches 5-8) if they refuse anything outside that shape.
 
+## Extra inputs (2026-10-14) — use them, they save most of the work
+- **What the function does:** `D:/Yugioh_DeComp_V2/private/readable/<name>.c` (Track B: proposed name, purpose,
+  readable C). Use it to understand the logic; it does NOT match bytes and its types are guesses.
+- **A matched sibling:** if `<name>` is listed in `D:/Yugioh_DeComp_V2/private/drafts/siblings.tsv`, the sibling's
+  byte-matching C is `D:/Yugioh_DeComp_V2/src/funcs/<sibling>.c`. Start from it.
+- **Allowed FAKEMATCH forms** (the check accepts exactly these): register pinning `register u32 x asm("r4");` and an
+  empty constraint `asm("" : "+r"(x));`. Comment them `/* FAKEMATCH: why */`. Any other `asm` is refused.
+- **On a structural miss:** write up to 3 restyled variants `<name>.v1.c`.. (switch vs if-chain, loop shape, temporaries
+  vs inline, early returns — see `HERMES_STYLES.md`), test each once, keep the best as `<name>.c`. Claude runs the
+  permuter on whatever still misses.
+
 ## Never
 - Commit anything, create branches, edit `AI_Conversation.md`, `AGENTS.md`, `ops/`, `tools/`, `scripts/`, `config/`.
 - Write into `D:/Yugioh_DeComp_V2/src` (the main checkout) or another drafter's worktree.
