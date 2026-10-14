@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sacred Cards Explorer</title>
+<style>
+  :root { --bg:#f6f5f2; --panel:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e2e0da; --accent:#7a4cc2; --chip:#efeaf8;
+          --hi:#2f7d4f; --med:#a8761a; --lo:#b04a3a; --code:#fbfaf7; --kw:#7a4cc2; --cm:#8a8a90; --num:#1f6f9c; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#16151a; --panel:#211f27; --ink:#ecebef;
+          --muted:#a3a1ab; --line:#34313d; --accent:#b894f5; --chip:#2c2836; --hi:#5cc58a; --med:#e0b04f; --lo:#ec7d6a;
+          --code:#1b1a20; --kw:#c7a6ff; --cm:#7d7b86; --num:#7cc4ee; } }
+  :root[data-theme="dark"] { --bg:#16151a; --panel:#211f27; --ink:#ecebef; --muted:#a3a1ab; --line:#34313d; --accent:#b894f5;
+          --chip:#2c2836; --hi:#5cc58a; --med:#e0b04f; --lo:#ec7d6a; --code:#1b1a20; --kw:#c7a6ff; --cm:#7d7b86; --num:#7cc4ee; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { padding:12px 16px; border-bottom:1px solid var(--line); background:var(--bg); position:sticky; top:0; z-index:2; }
+  h1 { margin:0 0 4px; font-size:18px; }
+  .sub { color:var(--muted); font-size:12.5px; margin:0 0 8px; }
+  .tools { display:flex; gap:8px; flex-wrap:wrap; }
+  input, select { padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); font-size:14px; }
+  input[type=search] { flex:1 1 240px; }
+  main { display:grid; grid-template-columns:minmax(260px,380px) 1fr; height:calc(100vh - 106px); }
+  #list { overflow:auto; border-right:1px solid var(--line); }
+  .row { padding:7px 12px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .row:hover, .row.sel { background:var(--chip); }
+  .row b { font-weight:600; }
+  .row .meta { color:var(--muted); font-size:12px; }
+  #detail { overflow:auto; padding:14px 18px 40px; }
+  .badge { display:inline-block; border-radius:999px; padding:1px 8px; font-size:12px; margin-right:6px; background:var(--chip); }
+  .c-high { color:var(--hi); } .c-medium { color:var(--med); } .c-low { color:var(--lo); }
+  .chips a { display:inline-block; margin:2px 4px 2px 0; padding:1px 7px; border-radius:6px; background:var(--chip); color:var(--accent);
+             text-decoration:none; font-size:12.5px; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; font:12.5px/1.5 ui-monospace,Consolas,monospace; }
+  pre a { color:var(--accent); } .kw { color:var(--kw); } .cm { color:var(--cm); } .nu { color:var(--num); }
+  .stats { color:var(--muted); font-size:12px; padding:6px 12px; border-bottom:1px solid var(--line); }
+  @media (max-width: 760px) { main { grid-template-columns:1fr; height:auto; } #list { max-height:45vh; border-right:0; border-bottom:1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Yu-Gi-Oh! The Sacred Cards — game explorer</h1>
+  <p class="sub">Track B: every function with a proposed name, purpose and readable C (AI-written, check the confidence). Private, local only.</p>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Search names, purposes, addresses (e.g. exodia, deck, 0x0801)">
+    <select id="area"><option value="">all areas</option></select>
+    <select id="conf"><option value="">any confidence</option><option>high</option><option>medium</option><option>low</option></select>
+    <select id="match"><option value="">Track A: any</option><option value="1">byte-matched</option><option value="0">not yet matched</option></select>
+  </div>
+</header>
+<main>
+  <div id="list"></div>
+  <div id="detail"><p class="sub">Pick a function on the left.</p></div>
+</main>
+<script>
+let IDX = [], BY = {};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const link = n => BY[n] ? '<a href="#' + n + '">' + esc(BY[n].p === n ? n : BY[n].p) + '</a>' : esc(n);
+
+function hl(code) {   // light highlighting + clickable function names
+  return esc(code)
+    .replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, '<span class="cm">$1</span>')
+    .replace(/\b(if|else|for|while|do|return|switch|case|break|default|void|u8|u16|u32|s8|s16|s32|int|char|struct|extern|static|const|volatile|unsigned)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(0x[0-9A-Fa-f]+|\d+)\b/g, '<span class="nu">$1</span>')
+    .replace(/\b(sub_[0-9A-F]{8}|main|irq_handler|crt0|reset)\b/g, m => BY[m] ? '<a href="#' + m + '">' + m + '</a>' : m);
+}
+function render() {
+  const q = $('q').value.trim().toLowerCase(), a = $('area').value, c = $('conf').value, m = $('match').value;
+  const rows = IDX.filter(e => (!a || e.r === a) && (!c || e.c === c) && (!m || String(+e.m) === m) &&
+      (!q || (e.n + ' ' + e.p + ' ' + e.u + ' ' + e.a).toLowerCase().includes(q)));
+  $('list').innerHTML = '<div class="stats">' + rows.length + ' of ' + IDX.length + ' functions</div>' + rows.slice(0, 600).map(e =>
+    '<div class="row" data-n="' + e.n + '"><b>' + esc(e.p) + '</b> <span class="meta c-' + e.c + '">' + e.c + '</span>' +
+    (e.m ? ' <span class="meta">✓ matched</span>' : '') + '<div class="meta">' + esc(e.u) + '</div></div>').join('') +
+    (rows.length > 600 ? '<div class="stats">showing the first 600 — refine the search</div>' : '');
+}
+async function show(n) {
+  const e = BY[n]; if (!e) return;
+  document.querySelectorAll('.row.sel').forEach(r => r.classList.remove('sel'));
+  const r = document.querySelector('.row[data-n="' + n + '"]'); if (r) r.classList.add('sel');
+  let code = '(code file missing)';
+  try { code = await (await fetch('c/' + n + '.c')).text(); } catch (err) {}
+  $('detail').innerHTML = '<h2 style="margin:0 0 4px">' + esc(e.p) + '</h2>' +
+    '<p class="sub">' + esc(e.u) + '</p>' +
+    '<span class="badge">' + n + '</span><span class="badge">' + esc(e.a) + ' · ' + e.s + ' bytes</span>' +
+    '<span class="badge c-' + e.c + '">confidence: ' + e.c + '</span><span class="badge">' + esc(e.r) + '</span>' +
+    '<span class="badge">' + (e.m ? 'Track A: byte-matched ✓' : 'Track A: not matched yet') + '</span>' +
+    '<h3 style="font-size:13px;color:var(--muted);margin:14px 0 4px">Calls</h3><div class="chips">' + (e.k.map(link).join('') || '<span class="sub">nothing</span>') + '</div>' +
+    '<h3 style="font-size:13px;color:var(--muted);margin:10px 0 4px">Called by</h3><div class="chips">' + (e.b.map(link).join('') || '<span class="sub">no direct callers found</span>') + '</div>' +
+    '<pre>' + hl(code) + '</pre>';
+  $('detail').scrollTop = 0;
+}
+$('list').addEventListener('click', ev => { const r = ev.target.closest('.row'); if (r) location.hash = r.dataset.n; });
+window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+['q', 'area', 'conf', 'match'].forEach(id => $(id).addEventListener('input', render));
+fetch('index.json').then(r => r.json()).then(d => {
+  IDX = d.sort((x, y) => x.a.localeCompare(y.a)); IDX.forEach(e => BY[e.n] = e);
+  [...new Set(IDX.map(e => e.r))].sort().forEach(a => $('area').insertAdjacentHTML('beforeend', '<option>' + esc(a) + '</option>'));
+  render(); show(location.hash.slice(1) || 'main');
+});
+</script>
+</body>
+</html>
