@@ -18,7 +18,9 @@ if ($bal -ge 0 -and $bal -lt $MinBalanceUsd) { Say "BUDGET STOP: DeepSeek balanc
 
 $wt = "$Repo\private\worktrees\ds-$Batch"
 if (-not (Test-Path $wt)) { git -C $Repo worktree add -q --detach $wt main 2>&1 | Out-Null }
+if (-not (Test-Path -LiteralPath $List)) { Say "NO LIST: $List does not exist - not starting (2026-10-14 guard)"; exit 4 }
 $names = (Get-Content -LiteralPath $List -Raw).Trim() -replace '\s+', ' '
+if ($names -notmatch '^(sub_[0-9A-F]{8}|\w+)( \w+)*$' -or $names.Length -lt 8) { Say "BAD LIST: '$names' - not starting"; exit 4 }
 # No double quotes inside prompts (PowerShell 5.1 splits native args at embedded quotes).
 $p = "You are Hermes on DeepSeek, a parallel DRAFTER for Yugioh_DeComp_V2, batch $Batch. Your worktree is $wt. " +
      "Read D:\Yugioh_DeComp_V2\$Brief and do exactly that for these functions: $names . " +
