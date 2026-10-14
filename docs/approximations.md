@@ -281,3 +281,6 @@ Every labelled guess (A1..An) and where it is marked.
   (`0004 0249 800b 4018 0068 7047 …`). Matching is unaffected (build_matched copies the tail with `.incbin`); the
   function list should be split there (follow-up: scan extents for a second `bx lr`/`push` start). Also: two bare
   `bx lr` stubs at 0x08009248 and 0x0800924C inside sub_08009224's extent (critic, batch J0144–J0153).
+  More A35 cases (medium critics, batch M1): sub_08003A9C (24 real of 124 listed; 100 bytes of Thumb code at
+  0x08003AB4), sub_08004348 (34 of 120; small functions at 0x0800436C), sub_080043D0 (40 of 76; a function at
+  0x080043F8). The function count (~1,977) is therefore an undercount; a full extent scan / emulator trace is planned.
