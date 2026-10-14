@@ -1,0 +1,15 @@
+#include "global.h"
+
+extern u8 gUnk_02023298[];
+u32 sub_0802691C(u8 *, u32);
+
+extern u8 *gUnk_08D34AB4;
+
+void sub_0800FE6C(void)
+{
+    if (sub_0802691C(gUnk_02023298, 0x16E) == 0) {
+        *(u32 *)(gUnk_08D34AB4 + 0x14F0) = 0x7EE0ACE9;
+    } else {
+        *(u32 *)(gUnk_08D34AB4 + 0x14F0) = 0x7EF2D577;
+    }
+}
