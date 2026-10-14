@@ -2,7 +2,7 @@
 
 extern u8 gUnk_089C56B0[];
 
-u8 sub_08028414(u16);
+s8 sub_08028414(u16); /* returns a signed byte (lsls/asrs #0x18 in callee) */
 void sub_0803692C(const void *, void *, u32);
 
 void sub_0801E01C(u8 *dst, u16 a)
