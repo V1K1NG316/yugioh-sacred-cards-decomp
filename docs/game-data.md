@@ -536,3 +536,15 @@ NPC, which holds for the "challenge → duel" pairs but not for a record whose J
 huge (it swallows the records around it); and the lexicon only holds names the game itself
 spells out (17 characters — names like Arkana, Strings, Lumis, Umbra, Rebecca, Solomon, Serenity,
 Duke never appear in the ROM's dialogue at all, checked by word-boundary search).
+
+## Outside check: r/patientgamers post (Matter_Scatter, 2026-10-14 06:03)
+A player's write-up quotes five card costs; our tables (cost u32 at 0x08088DF0+4k, ATK/DEF/level arrays) give the
+same numbers for all five: Mask of Darkness 72 (900/400, Lv 2), Blackland Fire Dragon 183 (1500/800, Lv 4),
+Morinphen 10 (1550/1300, Lv 5), Raigeki 50, Legendary Sword 100. Independent confirmation of the decoded card data.
+Other claims from the post, **not yet verified in the ROM** (hypotheses; community info may come from other builds):
+- start: 40-card deck, deck capacity 1600, duelist level 72; a card cannot go in the deck if its cost exceeds the
+  duelist level or the capacity; hand limit 5 (a full hand skips the draw).
+- type advantage: Pyro > Forest > Wind > Earth > Thunder > Aqua > Pyro and Shadow > Light > Fiend > Dream > Shadow;
+  Divine neutral; the loser of an advantage matchup dies regardless of stats.
+- field terrain gives certain types a 30 % ATK/DEF boost.
+- tribute rules: Lv 5-6 one tribute, Lv 7-8 two, Lv 9-12 three. Five locator cards lead to the finals.
