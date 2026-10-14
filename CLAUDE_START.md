@@ -87,7 +87,7 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `private\jobs\tests\`, their worktrees and branches removed. Real jobs start at J0001.
 - Live view verified: it labels `[DeepSeek]`, `[qwen36-agent]` and `[local <job>]` sessions.
 
-## PAUSED by Matter_Scatter at 2026-10-13 12:29 — to resume
+## (was PAUSED at 2026-10-13 12:29; resumed 2026-10-14 04:34)
 - Stopped: worker (background process), permuter run on the medium near misses (sub_080058AC, sub_08003B18 done or
   partial; sub_080064C8 interrupted; sub_08001410, sub_08005BCC not run), job watch. `private/jobs/STOP` exists; J0203
   requeued; local model unloaded (GPU 0%). Nothing half-merged; main = 180 matched, `make compare` OK.
