@@ -33,12 +33,19 @@ DEFS=()
 : > "$OUT.symrefs"
 while read -r s; do
   [ -n "$s" ] || continue
-  if ! [[ $s =~ ^[A-Za-z_][A-Za-z0-9_]*_([0-9A-Fa-f]{8})$ ]]; then
-    echo "asm_with_defsyms: $s is not a NAME_<8 hex digits> ROM address; refusing to guess" >&2
-    exit 2
+  if [[ $s =~ ^[A-Za-z_][A-Za-z0-9_]*_([0-9A-Fa-f]{8})$ ]]; then
+    addr=0x${BASH_REMATCH[1]}
+  else
+    # A named function (reset, crt0, irq_handler, main): its address is its row in config/functions.csv
+    # (2026-10-14; before, every function referring to one of them could not be permuted or diffed).
+    addr=$(awk -F, -v n="$s" '$2 == n { print $1; exit }' "$(dirname "$0")/../config/functions.csv")
+    if [ -z "$addr" ]; then
+      echo "asm_with_defsyms: $s is neither NAME_<8 hex digits> nor a named function in config/functions.csv; refusing to guess" >&2
+      exit 2
+    fi
   fi
   printf '%s\n' "$s" >> "$OUT.symrefs"
-  DEFS+=(--defsym "$s=0x${BASH_REMATCH[1]}")
+  DEFS+=(--defsym "$s=$addr")
 done < <(arm-none-eabi-nm -u "$TMP/pass1.o" | awk '{print $NF}')
 
 arm-none-eabi-as "${AS_FLAGS[@]}" ${DEFS[@]+"${DEFS[@]}"} -o "$OUT" "$IN"

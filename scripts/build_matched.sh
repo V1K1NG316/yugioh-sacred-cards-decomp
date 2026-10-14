@@ -50,7 +50,11 @@ for c in src/funcs/*.c; do
   while read -r s; do
     [ -n "$s" ] || continue
     if ! [[ $s =~ ^[A-Za-z_][A-Za-z0-9_]*_([0-9A-Fa-f]{8})$ ]]; then
-      echo "build_matched: $name references '$s', which is not a NAME_<8 hex digits> ROM address" >&2
+      # A named function (irq_handler, main, ...) is already a label in the disassembly: nothing to .set.
+      if awk -F, -v n="$s" 'NR > 1 && $2 == n {found = 1} END {exit !found}' config/functions.csv; then
+        continue
+      fi
+      echo "build_matched: $name references '$s', which is neither NAME_<8 hex digits> nor a named function" >&2
       exit 1
     fi
     if ! awk -F, -v n="$s" 'NR > 1 && $2 == n {found = 1} END {exit !found}' config/functions.csv; then
