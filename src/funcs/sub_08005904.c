@@ -8,7 +8,7 @@ u32 sub_08014110(void);
 extern u8 gUnk_02020770[];
 extern u32 gUnk_02020B00[];
 
-u32 sub_08005904(u16 a)
+u16 sub_08005904(u16 a)
 {
     if (gUnk_02020770[a] == 0)
         return 0x4000;
