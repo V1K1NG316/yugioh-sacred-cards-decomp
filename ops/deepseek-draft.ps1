@@ -3,7 +3,8 @@
 #   powershell -ExecutionPolicy Bypass -File ops\deepseek-draft.ps1 -Batch b9a -List D:\...\names.txt
 # Stops before starting if DeepSeek spend >= $BudgetStopUsd. Done when private\drafts\report_<Batch>.md exists.
 param([Parameter(Mandatory)][string]$Batch, [Parameter(Mandatory)][string]$List,
-      [ValidateSet('low','medium','high')][string]$Reasoning = 'medium', [int]$MaxNudges = 2)
+      [ValidateSet('low','medium','high')][string]$Reasoning = 'medium', [int]$MaxNudges = 2,
+      [string]$Brief = 'HERMES_DRAFTER.md')   # -Brief HERMES_STYLES.md: style variants for medium misses
 . "$PSScriptRoot\common.ps1"
 $log = "$Logs\deepseek-draft-$Batch.log"
 $report = "$Repo\private\drafts\report_$Batch.md"
@@ -18,7 +19,7 @@ if (-not (Test-Path $wt)) { git -C $Repo worktree add -q --detach $wt main 2>&1 
 $names = (Get-Content -LiteralPath $List -Raw).Trim() -replace '\s+', ' '
 # No double quotes inside prompts (PowerShell 5.1 splits native args at embedded quotes).
 $p = "You are Hermes on DeepSeek, a parallel DRAFTER for Yugioh_DeComp_V2, batch $Batch. Your worktree is $wt. " +
-     "Read D:\Yugioh_DeComp_V2\HERMES_DRAFTER.md and do exactly that for these functions: $names . " +
+     "Read D:\Yugioh_DeComp_V2\$Brief and do exactly that for these functions: $names . " +
      "You are done when $report is written."
 $nudge = "Continue drafter batch $Batch. Your last message had no tool call. Make the next tool call now; you are done " +
          "only when $report is written."
