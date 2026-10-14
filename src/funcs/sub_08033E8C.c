@@ -1,0 +1,10 @@
+#include "global.h"
+
+u32 sub_08033DD8(u8 *, u16);
+
+extern u8 gUnk_08175A39[];
+
+u8 sub_08033E8C(u16 a)
+{
+    return (u8)sub_08033DD8(gUnk_08175A39, a);
+}
