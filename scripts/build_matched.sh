@@ -25,8 +25,21 @@ for c in src/funcs/*.c; do
   read -r addr mode size <<< "$row"
   [ "$mode" = thumb ] || { echo "build_matched: $name is $mode, not thumb" >&2; exit 1; }
 
-  bash scripts/match_func.sh "$name" "$addr" "$REPO/src/funcs"
   W="$REPO/private/build/match/$name"
+  # Incremental build (2026-10-14, idea from recent GBA decomps): a function whose C, row in functions.csv and
+  # build scripts are unchanged since its last *successful* check reuses that result (gen.s, size.txt).
+  KEY=$( { cat "$c"; echo "$row"; cat scripts/match_func.sh scripts/link_at.sh scripts/asm_with_defsyms.sh \
+           scripts/build_matched.sh asm/macros.inc 2>/dev/null; } | sha1sum | cut -d' ' -f1)
+  if [ "${BUILD_MATCHED_NOCACHE:-}" != 1 ] && [ -f "$W/cache.key" ] && [ "$(cat "$W/cache.key")" = "$KEY" ] \
+     && [ -f "$W/gen.s" ] && [ -f "$W/size.txt" ]; then
+    cp "$W/gen.s" "private/asm/funcs/$name.s"
+    MATCHED=$(( MATCHED + 1 ))
+    BYTES=$(( BYTES + $(cat "$W/size.txt") ))
+    CACHED=$(( ${CACHED:-0} + 1 ))
+    continue
+  fi
+  rm -f "$W/cache.key"
+  bash scripts/match_func.sh "$name" "$addr" "$REPO/src/funcs"
   L1=$(cat "$W/size.txt")
   EXTENT=$(( size ))
   if [ "$L1" -gt "$EXTENT" ]; then
