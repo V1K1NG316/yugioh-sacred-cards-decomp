@@ -2,7 +2,7 @@
 
 
 void sub_0801FD5C(void);
-short sub_0801C2A4(void);
+void sub_0801C2A4(void);
 extern u8 gUnk_02023040[];
 extern u8 gUnk_020215A4[];
 extern u8 gUnk_080C82F8[];
