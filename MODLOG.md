@@ -526,3 +526,12 @@ files are all tracked).
 - Fix: `scripts/build_matched.sh` writes `private/build/match/<name>/gen.s`, checks it, then copies it into place.
 - Attack test: wrong 32-byte C for sub_0801C324 → "does NOT reproduce", md5 of private/asm/funcs/sub_0801C324.s
   unchanged (013feb58…); after restoring the C, `make compare` → `private/build/yugioh.gba: OK`.
+
+## 2026-10-14 04:43 — Claude: published on GitHub (Matter_Scatter's request, public)
+- Repo: https://github.com/V1K1NG316/yugioh-sacred-cards-decomp (main = 93455da, 555 commits, 296 files).
+- Scrubbed copy: `wsl ... bash private/publish/make_public.sh` (bare clone of main + git-filter-repo 2.47.0 replacing the
+  Windows username with `USER` in all files and commit messages) → "objects containing the username: 0",
+  "game-derived paths: 0". Pushed with `git -C private/publish/yugioh.git push https://github.com/V1K1NG316/yugioh-sacred-cards-decomp.git main`;
+  `git ls-remote` → 93455da2d9cda840f592a6dcd6a18cfb7c215b36 refs/heads/main.
+- Update later: run make_public.sh again, then the same push with `--force` (history is re-written each time, same ids
+  for unchanged commits).
