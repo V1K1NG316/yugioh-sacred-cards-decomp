@@ -284,3 +284,7 @@ Every labelled guess (A1..An) and where it is marked.
   More A35 cases (medium critics, batch M1): sub_08003A9C (24 real of 124 listed; 100 bytes of Thumb code at
   0x08003AB4), sub_08004348 (34 of 120; small functions at 0x0800436C), sub_080043D0 (40 of 76; a function at
   0x080043F8). The function count (~1,977) is therefore an undercount; a full extent scan / emulator trace is planned.
+- **A36 permuter artifacts** (Claude, 2026-10-14). C found by the decomp-permuter can carry matching noise:
+  temporaries named `new_var`, `i++; i--;`, `do { } while (0);`, `if (i) return 0; else return 0;`, odd `int`/`short`
+  types for pointers or callee results. Reviewed as behaviour-neutral against the asm (critics, batch J0535–J0547);
+  stray `;` and a wrong callee prototype were cleaned where the function still matched. Clean the rest when touched.
