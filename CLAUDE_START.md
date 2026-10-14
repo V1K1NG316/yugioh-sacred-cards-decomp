@@ -110,6 +110,8 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
 - To do on resume: review+merge passed jobs J0568+ (REVIEWER_BRIEF.md, one critic per 20; `.c.orig` = two critics);
   vq.sh-style verify+queue of b11c drafts; tidy+queue `private/drafts/*.perm.c` matches; permute b11*/style misses
   (`PERMUTE_BASES="v1 v2 v3 v4 v5" bash tools/permute_many.sh 8 9 <names>`); make compare; publish.
+- Track B explorer (2026-10-14): `PY tools/build_readable_page.py` -> private/extracted/readable/, view with launch config
+  `extracted-pages` at http://localhost:8765/readable/ (private, local only; rebuild after new readable files/merges).
 - Idea not started: cache in scripts/build_matched.sh (skip unchanged C) — make compare now takes ~10 min.
 - CANCELLED by Matter_Scatter (REA ~ our Track B, per the video): after Track B finishes, install REA (Node.js + `npm install -g rea-agents`), run it on the
   r1 pilot's 60 functions, and compare Track A / Track B / REA (quality, speed, cost). Record the install in MODLOG.
