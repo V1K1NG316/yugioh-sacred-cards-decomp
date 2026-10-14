@@ -96,6 +96,15 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   `powershell -ExecutionPolicy Bypass -File 'D:\Yugioh_DeComp_V2\private\worktrees\claude-main\ops\local-worker.ps1' > private/logs/worker-console.log 2>&1`;
   re-run the permuter loop on the medium near misses; answer Matter_Scatter's timeframe question with its results.
 
+## HANDOFF 2026-10-14 07:21 (Claude hit the usage limit) — read first
+- main: 554 matched, make compare OK, GitHub pushed at 521 (publish: `bash private/publish/publish.sh`, scrubbed).
+- Still running unattended: script worker (`-Script`), DeepSeek drafters b11c + style variants sty1/sty2
+  (`private/drafts/report_<batch>.md` when done), permute_many on b10 misses (`private/permuter/many.tsv`).
+- To do on resume: review+merge passed jobs J0568+ (REVIEWER_BRIEF.md, one critic per 20; `.c.orig` = two critics);
+  vq.sh-style verify+queue of b11c drafts; tidy+queue `private/drafts/*.perm.c` matches; permute b11*/style misses
+  (`PERMUTE_BASES="v1 v2 v3 v4 v5" bash tools/permute_many.sh 8 9 <names>`); make compare; publish.
+- Idea not started: cache in scripts/build_matched.sh (skip unchanged C) — make compare now takes ~10 min.
+
 ## Decisions by Matter_Scatter (2026-10-14 05:03) — current flow
 - **Plan A:** DeepSeek drafts batches; Claude re-tests every draft; **the permuter runs on every miss** (free, CPU);
   matched drafts are queued. (A DeepSeek "researcher + expert" subagent variant was discussed and NOT chosen for now.)
