@@ -70,3 +70,4 @@ Community tools and sources used (name, URL, version/commit, licence).
   (`https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/`) is verified against the
   `.sha512` Apache publishes next to it; the Ghidra jars the build needs are installed into
   `private/tools/maven/repo` (never `~/.m2`). Licence: **Apache-2.0** (`LICENSE`).
+- git-filter-repo 2.47.0 (MIT, github.com/newren/git-filter-repo): scrubs the Windows username before publishing (in private/venv).

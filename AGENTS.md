@@ -30,7 +30,9 @@ and rescuing jobs the local model failed twice. Anything repeatable becomes a lo
 5. Kill processes by exact PID only. No `--yolo`. No wiping folders.
 6. **Numbers, not vibes.** Every claim has the command and its real output. Times come from `date` / `Get-Date`.
 7. Small edits (files written in pieces under ~150 lines). Prefer a script to reasoning about bytes in your head.
-8. Nothing is shared or published. Community open-source tools are allowed; record them in `docs\credits.md`.
+8. Published at github.com/V1K1NG316/yugioh-sacred-cards-decomp (public, Matter_Scatter 2026-10-14) via a scrubbed copy
+   (`private/publish/`, git-filter-repo replaces the Windows username with `USER`). Never push from this checkout;
+   nothing game-derived ever goes in git. Community open-source tools are allowed; record them in `docsedits.md`.
 
 ## 2. Branches and flow
 - `main` is Claude's. DeepSeek works on `deepseek/<task-slug>`; local jobs on `local/<job-id>` in
