@@ -13,6 +13,8 @@ function Say($s) { Write-Host $s -ForegroundColor Cyan; $s | Out-File $log -Appe
 $spent = Get-DeepSeekSpend
 Say "=== DeepSeek drafter $Batch  $(Get-Date -Format s)  spent so far `$$('{0:N2}' -f $spent) of `$$BudgetStopUsd ==="
 if ($spent -ge $BudgetStopUsd) { Say 'BUDGET STOP: DeepSeek spend reached the limit. Ask Matter_Scatter.'; exit 3 }
+$bal = Get-DeepSeekBalance
+if ($bal -ge 0 -and $bal -lt $MinBalanceUsd) { Say "BUDGET STOP: DeepSeek balance is `$$bal (< `$$MinBalanceUsd). Ask Matter_Scatter."; exit 3 }
 
 $wt = "$Repo\private\worktrees\ds-$Batch"
 if (-not (Test-Path $wt)) { git -C $Repo worktree add -q --detach $wt main 2>&1 | Out-Null }

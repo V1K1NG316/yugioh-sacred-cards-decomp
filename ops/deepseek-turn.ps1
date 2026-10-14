@@ -27,6 +27,8 @@ function Say($s) { Write-Host $s -ForegroundColor Cyan; $s | Out-File $log -Appe
 $spent = Get-DeepSeekSpend
 Say "=== DeepSeek turn $Entry  $(Get-Date -Format s)  spent so far `$$('{0:N2}' -f $spent) of `$$BudgetStopUsd ==="
 if ($spent -ge $BudgetStopUsd) { Say 'BUDGET STOP: DeepSeek spend reached the limit. Ask Matter_Scatter.'; exit 3 }
+$bal = Get-DeepSeekBalance
+if ($bal -ge 0 -and $bal -lt $MinBalanceUsd) { Say "BUDGET STOP: DeepSeek balance is `$$bal (< `$$MinBalanceUsd). Ask Matter_Scatter."; exit 3 }
 
 # No double quotes inside prompts (PowerShell 5.1 splits native args at embedded quotes).
 $p = "You are Hermes on DeepSeek, the main engineer of Yugioh_DeComp_V2. Read D:\Yugioh_DeComp_V2\HERMES_START.md " +
