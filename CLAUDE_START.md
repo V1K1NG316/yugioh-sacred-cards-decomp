@@ -111,6 +111,9 @@ later. Never fall back to paid DeepSeek critics without asking Matter_Scatter.
   vq.sh-style verify+queue of b11c drafts; tidy+queue `private/drafts/*.perm.c` matches; permute b11*/style misses
   (`PERMUTE_BASES="v1 v2 v3 v4 v5" bash tools/permute_many.sh 8 9 <names>`); make compare; publish.
 - Idea not started: cache in scripts/build_matched.sh (skip unchanged C) — make compare now takes ~10 min.
+- Planned (2026-10-14, Matter_Scatter will say when they have time): a recorded play session in mGBA with a logging
+  script (inputs, executed functions, key RAM) — confirms Track B names, finds unlisted code (A35), tests
+  community rules (hand limit 5, type chain, field bonus). Build/test the logger ~30-60 min before the session.
 
 ## Decisions by Matter_Scatter (2026-10-14 05:03) — current flow
 - **Plan A:** DeepSeek drafts batches; Claude re-tests every draft; **the permuter runs on every miss** (free, CPU);
