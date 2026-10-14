@@ -288,3 +288,5 @@ Every labelled guess (A1..An) and where it is marked.
   temporaries named `new_var`, `i++; i--;`, `do { } while (0);`, `if (i) return 0; else return 0;`, odd `int`/`short`
   types for pointers or callee results. Reviewed as behaviour-neutral against the asm (critics, batch J0535–J0547);
   stray `;` and a wrong callee prototype were cleaned where the function still matched. Clean the rest when touched.
+  Known matching hacks kept (batch J0745–J0767): sub_0802355C reads an uninitialised local in an if/else with identical
+  arms (removing it breaks the match); sub_08023C20 declares its callee `volatile long long` to get `pop {r1}`.
