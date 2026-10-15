@@ -295,3 +295,6 @@ Every labelled guess (A1..An) and where it is marked.
   `agbcc` and 1-12 bytes off with `old_agbcc` (re-tested by Claude). A file opts in with the first line
   `/* compiler: agbcc ... */` (scripts/match_func.sh, scripts/permute_func.sh). The guess is the per-file choice, not
   the range: the real boundaries are unknown, so each file says what it needs.
+  Update (same day): a sweep of 651 older unmatched drafts with `agbcc` found 99 more that match only with it; they
+  are spread over the whole ROM (30 in 0x08033xxx, 10 in 0x08036xxx, the rest 1-7 per 4 KB block from 0x08003000
+  up). So the newer compiler was used for many files, not one range; each file's marker is the evidence.
