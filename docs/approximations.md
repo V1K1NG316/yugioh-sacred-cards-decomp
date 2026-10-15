@@ -290,3 +290,8 @@ Every labelled guess (A1..An) and where it is marked.
   stray `;` and a wrong callee prototype were cleaned where the function still matched. Clean the rest when touched.
   Known matching hacks kept (batch J0745–J0767): sub_0802355C reads an uninitialised local in an if/else with identical
   arms (removing it breaks the match); sub_08023C20 declares its callee `volatile long long` to get `pop {r1}`.
+- **A37 two compilers** (Claude, 2026-10-14). Most of 0x0802B000-0x08035FFF matches only with the newer `agbcc`, not
+  `old_agbcc` (the rest of the game). Evidence: 72 DeepSeek drafts from batches m42-m45 were byte-identical with
+  `agbcc` and 1-12 bytes off with `old_agbcc` (re-tested by Claude). A file opts in with the first line
+  `/* compiler: agbcc ... */` (scripts/match_func.sh, scripts/permute_func.sh). The guess is the per-file choice, not
+  the range: the real boundaries are unknown, so each file says what it needs.

@@ -41,8 +41,15 @@ mkdir -p "$W"
 cp "$SRCDIR/$NAME.c" "$W/$NAME.c"
 
 # pokefirered's agbcc invocation, minus its charmap preprocessor (we have no charmap yet).
+# Compiler per file (A37): a C file whose first line is `/* compiler: agbcc ... */` was built by the
+# newer agbcc (most of 0x0802B000-0x08035FFF matches only with it); every other file uses old_agbcc.
+# AGBCC=<name> in the environment overrides both (experiments only).
+CC=${AGBCC:-}
+if [ -z "$CC" ]; then
+  if head -1 "$W/$NAME.c" | grep -q "^/\* compiler: agbcc\b"; then CC=agbcc; else CC=old_agbcc; fi
+fi
 cpp -nostdinc -undef -std=gnu89 -I "$A/include" -I "$A" -I "$REPO/include" -o "$W/$NAME.i" "$W/$NAME.c"
-"$A/bin/${AGBCC:-old_agbcc}" -mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm -o "$W/$NAME.s" "$W/$NAME.i"
+"$A/bin/$CC" -mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm -o "$W/$NAME.s" "$W/$NAME.i"
 # A constant the C names (`extern u8 gUnk_0201FCC0[]`) becomes the address in that name, exactly
 # as `make` does it in build_matched.sh (`.set gUnk_0201FCC0, 0x0201FCC0`), so the object holds the
 # ROM's own constant instead of a relocation. Calls to other functions keep their relocation.

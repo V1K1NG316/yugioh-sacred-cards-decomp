@@ -76,8 +76,15 @@ REPO=/mnt/d/Yugioh_DeComp_V2
 A=$REPO/private/tools/agbcc
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
+# Compiler per file (A37): a C file whose first line is `/* compiler: agbcc ... */` was built by the
+# newer agbcc (most of 0x0802B000-0x08035FFF matches only with it); every other file uses old_agbcc.
+# AGBCC=<name> in the environment overrides both (experiments only).
+CC=${AGBCC:-}
+if [ -z "$CC" ]; then
+  if head -1 "$IN" | grep -q "^/\* compiler: agbcc\b"; then CC=agbcc; else CC=old_agbcc; fi
+fi
 cpp -nostdinc -undef -std=gnu89 -I "$A/include" -I "$A" -I "$REPO/include" -o "$T/c.i" "$IN"
-"$A/bin/${AGBCC:-old_agbcc}" -mthumb-interwork -Wimplicit -Wparentheses -O2 -fhex-asm -o "$T/c.s" "$T/c.i"
+"$A/bin/$CC" -mthumb-interwork -Wimplicit -Wparentheses -O2 -fhex-asm -o "$T/c.s" "$T/c.i"
 bash "$REPO/scripts/asm_with_defsyms.sh" "$T/c.s" "$OUT"
 COMPILE
 
