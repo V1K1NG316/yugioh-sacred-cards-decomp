@@ -31,6 +31,10 @@ Generator scripts for one repeated shape are fine (as in batches 5-8) if they re
   vs inline, early returns — see `HERMES_STYLES.md`), test each once, keep the best as `<name>.c`. Claude runs the
   permuter on whatever still misses.
 
+- **Two compilers (A37):** most of 0x0802B000-0x08035FFF was built with the newer `agbcc`. If a draft is off by a few
+  bytes with the default, make its FIRST line `/* compiler: agbcc (A37) */` and test again with plain
+  `PY tools/match_func.py <name>`; the marker is what the build uses. Never claim a match that needed `AGBCC=...`.
+
 ## Never
 - Commit anything, create branches, edit `AI_Conversation.md`, `AGENTS.md`, `ops/`, `tools/`, `scripts/`, `config/`.
 - Write into `D:/Yugioh_DeComp_V2/src` (the main checkout) or another drafter's worktree.
