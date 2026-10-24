@@ -670,3 +670,36 @@ files are all tracked).
   `tools/test_*.py` → exit 0; `make compare` → `private/build/yugioh.gba: OK`, exit 0.
 - Docs: `docs/tools.md` (mGBA bullet: stub on `0.0.0.0:2345`, netns default, `EMU_NO_NETNS=1`, TERM→KILL,
   usage/refusal exits), `docs/jobs.md` (retired note). Nothing committed.
+
+## 2026-10-24 07:47 — Y5 batch 1: 30 more functions matched in C (Hermes/DeepSeek)
+- Baseline: `python3 tools/progress.py` → `1025/1977 functions matched (51.85%)`, `48120/221610 code bytes
+  (21.71%)`; `make compare` (after `rm -f private/build/rom.o`) → `private/build/yugioh.gba: OK`, exit 0.
+- Rebuilt the lost fix list `private/drafts/NOTES.txt` (16 rules from the findings + 9 new ones B1-B9) and
+  used it before every draft. `private/drafts/ATTEMPTS.tsv` logs all 49 attempts; the brief's Report has
+  the table.
+- 30 new `src/funcs/*.c`, each checked with `python3 tools/match_func.py <name>` → exit 0 (loop over all
+  30 at the end: every line `0`). 14 of them need the `/* compiler: agbcc (A37) */` opt-in (old_agbcc is
+  1-4 lines off: load scheduling/pool order), 2 use the `register u32 v asm("r0")` FAKEMATCH pin
+  (`sub_08018670`, `sub_0801892C`), the rest are old_agbcc.
+- Mechanical drafts: `tools/gen_wrapper_drafts.py` → 0 drafts (an own scan of the 947 unmatched THUMB
+  functions found no bare `bx lr` and no pure `bl`-chain left — they were all matched in earlier batches).
+  `tools/siblings.py` → 20 rows ≥0.95; `tools/sibling_drafts.py --min 0.95` → 10 drafts, 1 matched as
+  written (`sub_0800CABC`), 8 more matched after re-deriving the constants from the ROM asm
+  (`sub_0800B258` 500→1000, `sub_080103AC` 1000→4000 and 0x7FF99749→0x7FF99747, `sub_08028B2C`
+  `[0x17]==5`→`[0x16]==0xB` + `(0x1A,0x1A)`→`(0xF,0xF)` + `i<5`→`i<=4`, `sub_0802F340` 0x296→0x313,
+  `sub_0802F3C0` 0x296→0x312, `sub_0801ADE0` `sub_0801C0F0(4)`→`(0)`, `sub_0800CA48` missing argument
+  `sub_0802691C(p, 0x3A)` + second callee is `sub_080268FC`), 1 unmatched (`sub_08015B38`).
+- Hand drafts: the 40 targets from `tools/pick_decomp_targets.py 40 --list`, 22 matched by hand,
+  2 from permuter output (`sub_0803B4A0` tidied from `best.c`, `sub_08014554` straight from `best.c`).
+  10 permuter runs (`tools/permute_func.sh <name> 2 --base …`), 1 produced a candidate that passes the
+  check; the other 9 best scores were 25-285, none 0.
+- Proved impossible with this toolchain: agbcc 2.9-arm emits no sibling/tail calls — a one-line wrapper
+  `void g(void){ f(); }` compiles to `push {lr}; bl f; pop {r0}; bx r0` with both `old_agbcc` and
+  `agbcc`, so any ROM function that ends in `b.n <callee>` (e.g. `sub_08037144`) cannot match. Also
+  unmatched by design: bare `bx r3` (`sub_08037578`), register-level loops that read/write a callee's r3
+  (`sub_08037110`, `sub_08037150`), and 64-bit negation needing `__negdi2` (`sub_0803B488`).
+- Final gates: `make compare` → `private/build/yugioh.gba: OK`, exit 0; `python3 tools/progress.py` →
+  `1055/1977 functions matched (53.36%)`, `49588/223650 code bytes (22.17%)`;
+  `python3 tools/guard_repo.py` → `guard: 1148 files checked, 0 failures`; `python3 tools/hash_rom.py` →
+  ORIGINAL+BASEROM `sha1=d3710031520d9cdae70d870c60b1667285fe5230` `OK`; all 16 `tools/test_*.py` → exit 0.
+  No existing file changed (`git status --short` lists only the 30 new `src/funcs/*.c`). Nothing committed.
