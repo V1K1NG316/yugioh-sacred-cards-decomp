@@ -222,4 +222,11 @@ checksum 09) is byte-identical to the V1 file named **"Yu-Gi-Oh! - The Sacred Ca
 Collection)"**, i.e. Konami's re-release, not the 2003 cartridge. Data Crystal lists CRC32 `141FB1CC` for the
 original USA cartridge (same code/checksum), so the two builds differ somewhere. All extracted data and every page
 describe the **Early Days Collection** build. Community sources (speedrunners often use original carts or mods)
-are hypotheses only; verify everything against this ROM. Open: where the two builds differ (needs a cart dump).
+are hypotheses only; verify everything against this ROM.
+
+**Cart vs EDC, diffed 2026-10-24 (Claude, cart dump SHA-1 `a06735f9c3d10be9339657026981aef77af34b27`):** same size,
+header and layout; 35,087 bytes differ in four areas. (1) Code: `sub_080195E8` at `0x080195F0`, the cart has a `bl`
+(`eaf7b2fa`) where the EDC has `b` + nop (`0ae00000`), so the re-release skips one call. (2) `0x0809392C`-`0x08093989`:
+one card name, "Space Megatron" in the cart, "Space Drone" in the EDC, all six languages. (3) `0x08D52274`-`0x08D54472`:
+24 three-byte changes at 4-byte spacing in 12 clusters, not identified yet. (4) `0x08E95F00`-`0x08E9E937` (35 KB):
+`0xFF` padding in the cart, data in the EDC. No other function differs, so matched C and extracted data hold for both.

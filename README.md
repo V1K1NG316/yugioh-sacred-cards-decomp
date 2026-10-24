@@ -9,9 +9,10 @@ game's exact bytes. Owner: Matter_Scatter.
 tables, builds) is generated locally into `private/`, which is never committed (`tools/guard_repo.py` enforces it).
 
 **How it is made:** an AI team. Claude directs and reviews; Hermes on DeepSeek drafts and does the hard analysis;
-Hermes on a local Qwen model does bulk work around the clock; check scripts and Claude critic agents verify every
-change. The day-to-day log is `AI_Conversation.md`; rules are in `AGENTS.md`; the pilot results are in
-`docs/pilot.md`. Machine-specific paths use the placeholder `USER`.
+check scripts and Claude reviewer agents verify every change before it is committed. Rules are in `AGENTS.md`; the
+pilot results are in `docs/pilot.md`. The first phase (2026-10-12 to 2026-10-14, on Windows with a local Qwen model
+doing bulk work) is archived in `docs/archive/windows-v2/`, including its day-to-day log `AI_Conversation.md`.
+Machine-specific paths use the placeholder `USER`.
 
 ## Milestones
 | ID | Goal | Status |
