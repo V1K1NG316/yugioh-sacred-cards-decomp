@@ -613,3 +613,60 @@ files are all tracked).
   `tools/test_*.py` → PASS; `make compare` → `private/build/yugioh.gba: OK`, exit 0.
 - Docs: `docs/tools.md` (permuter/differ tested, mGBA bullet rewritten), `docs/game-data.md` (card-picture
   extractor marked done, mGBA path/emulator harness line updated).
+
+## 2026-10-24 07:01 — Windows runners archived, Linux tools hardened (Hermes/DeepSeek)
+- Archived with `git mv` (12 files, names kept): `ops/common.ps1`, `ops/deepseek-draft.ps1`,
+  `ops/deepseek-turn.ps1`, `ops/local-worker.ps1`, `ops/Modelfile.qwen36-decomp`, `ops/watch.py` →
+  `docs/archive/windows-v2/ops/`; `tools/status.py`, `tools/cost_index.py`, `tools/deepseek_balance.py`,
+  `tools/deepseek_spend.py`, `tools/backup_hermes.py`, `tools/newest_session.py` →
+  `docs/archive/windows-v2/tools/`. `ops/` is gone. `git check-ignore -q` on each moved file → 1 (not
+  ignored), so `.gitignore` was left alone.
+- `git grep` each base name outside `docs/archive/` and `MODLOG.md` (old log entries are history): the only
+  hit was `docs/game-data.md` naming `docs/archive/windows-v2/tools/cost_index.py`, i.e. already the archive
+  path. Nothing live points at an archived file now; the leftovers are `AGENTS.md`'s sentence saying they were
+  retired and `.gitignore`'s now-unused `!ops/**` whitelist line.
+- `docs/jobs.md`: one line at the top records the local-worker job queue retired 2026-10-24 and the file kept
+  as a record. Written byte-wise: the file is still UTF-8 BOM + CRLF (6 350 → 6 605 bytes, only the new lines
+  differ).
+- `scripts/emu_groundtruth.sh` rewritten: no argument → `usage: emu_groundtruth.sh <script.py> [args]`, exit 2;
+  refuses with exit 1 if anything already listens on 2345 (checked on the host and again inside the namespace);
+  accepts the stub only when `ss -ltnp` names its own `$PID`; kills with `kill -TERM`, waits 3 s, then
+  `kill -KILL`; runs mGBA *and* the script inside `unshare --user --map-root-user --net` with `ip link set lo up`
+  (`EMU_NO_NETNS=1` opts out). Measured:
+  - `bash scripts/emu_groundtruth.sh` → `usage: emu_groundtruth.sh <script.py> [args]`, exit 2.
+  - dummy listener (`python3 -m http.server 2345 --bind 127.0.0.1`, pid 1718829) → `emu_groundtruth: port 2345
+    is already in use (checked on the host); mGBA's gdb stub needs it free.` + the `ss` line, exit 1, no
+    emulator started.
+  - `bash scripts/emu_groundtruth.sh scripts/emu_anchors.py` → 4 hashes `OK`, `ANCHORS OK`, 7.2 s, exit 0.
+  - `bash scripts/emu_groundtruth.sh scripts/emu_card_image.py` → `card 1: 1018 bytes changed, last 0xcff`,
+    `card 2: 1017 bytes changed, last 0xcff`, `max read chunk: 256`, `done`, 15.3 s, exit 0.
+  - `pgrep -x mgba-qt` after each run → nothing.
+  - SIGSTOPped emulator (scratch script) → `emu_groundtruth: pid 1719218 ignored SIGTERM for 3 s; sending
+    SIGKILL`, exit 0, no process left: the TERM→KILL escalation works.
+  - fake emulator that starts but never opens the stub (`MGBA=…/fake_mgba_noStub.sh`) → `the gdb stub is not
+    listening on port 2345 with pid 1721423`, exit 1: the own-PID check really does gate the run.
+  - `EMU_NO_NETNS=1 bash scripts/emu_groundtruth.sh scripts/emu_anchors.py` → `ANCHORS OK`, exit 0.
+  - the run really is isolated: a script that prints `/proc/<pid>/ns/net` for `mgba-qt` and for itself got
+    `net:[4026534171]` for both against the host's `net:[4026531833]`, and `xprop -root _NET_CLIENT_LIST` →
+    `WM_CLASS(STRING) = "mgba-qt", "mGBA"`, i.e. the window is mapped while the stub lives only in that namespace.
+- `scripts/decomp_tools.sh`: pip comes from `python3 -m ensurepip --upgrade --default-pip` inside the venv,
+  `get-pip.py` is only the fallback (`curl -fsSL`), and the packages are pinned to the 2026-10-24
+  `pip freeze` (`toml==0.10.2 colorama==0.4.6 watchdog==6.0.0 Levenshtein==0.27.5 rapidfuzz==3.14.6
+  cxxfilt==0.3.0`); the script prints `pip freeze` at the end. Fresh run (`mv private/venv private/venv.old`):
+  `decomp_tools: creating …/private/venv`, `decomp_tools: bootstrapping pip inside the venv (ensurepip)`,
+  `decomp_tools: python deps OK in …/private/venv`, the six pinned lines, exit 0; the old venv was deleted after
+  the pass. First attempt failed on my own import probe (`ModuleNotFoundError: No module named 'levenshtein'` —
+  the module is `Levenshtein`), fixed. The get-pip fallback was exercised on its own in a throwaway venv:
+  `curl -fsSL -o get-pip.py https://bootstrap.pypa.io/get-pip.py` → `Successfully installed pip-26.2.2`.
+  `bash tools/diff_func.sh sub_08014480` on the rebuilt venv → `CURRENT (0)`, exit 0.
+- `tools/extract_card_images.py`: new `clear_pngs()` unlinks the `*.png` files in `private/extracted/cards/`
+  before writing and nothing else; a missing ROM is one line on stderr and exit 1. Tested: stray `999.png`
+  added → `before: pngs=901`, run → `cards: 900` / `bytes: 1085114`, `after: pngs=900 999.png=gone`, with
+  `notes.txt` and a subdirectory left in place. `mv private/baserom.gba private/baserom.gba.away` → `the ROM
+  …/private/baserom.gba is missing (it is not tracked; copy it there)`, exit 1; moved back, `tools/hash_rom.py`
+  `OK`. `python3 tools/test_card_images.py` → `ALL CHECKS PASSED`.
+- Gates: `python3 tools/hash_rom.py` → ORIGINAL+BASEROM `sha1=d3710031520d9cdae70d870c60b1667285fe5230` `OK`,
+  exit 0; `python3 tools/guard_repo.py` → `guard: 1148 files checked, 0 failures`, exit 0; all 16
+  `tools/test_*.py` → exit 0; `make compare` → `private/build/yugioh.gba: OK`, exit 0.
+- Docs: `docs/tools.md` (mGBA bullet: stub on `0.0.0.0:2345`, netns default, `EMU_NO_NETNS=1`, TERM→KILL,
+  usage/refusal exits), `docs/jobs.md` (retired note). Nothing committed.

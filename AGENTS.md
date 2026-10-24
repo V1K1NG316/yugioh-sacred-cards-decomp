@@ -28,4 +28,4 @@ archived in `docs/archive/windows-v2/` as a read-only record.
 - `docs/decomp.md`: the matching-C loop and its tools. `docs/rom-map.md`, `docs/game-data.md`: what is known about the ROM.
 - `docs/approximations.md`: every labelled guess (A1..An). `MODLOG.md`: dated log of changes with commands and output.
 - `config/functions.csv`: the function list. `src/funcs/<name>.c`: matched functions, one per file.
-- `tools/`, `scripts/`: generators, checks and build steps. `ops/`: the old Windows runners (to be replaced).
+- `tools/`, `scripts/`: generators, checks and build steps. The old Windows runners (`ops/*.ps1` and friends) were retired to `docs/archive/windows-v2/` on 2026-10-24.

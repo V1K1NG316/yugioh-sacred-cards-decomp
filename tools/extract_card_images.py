@@ -7,6 +7,9 @@ palette index, stored as nine 8x8-pixel tiles of 64 bytes in row-major order
 `private/extracted/cards/<n>.png` (24x24, PLTE = those 256 colours, no tRNS).
 
 Usage: python3 tools/extract_card_images.py
+Before writing it deletes the `*.png` files already in `private/extracted/cards/` — and nothing
+else there, so other files and subdirectories survive. A missing `private/baserom.gba` is a
+one-line error on stderr, exit 1.
 Prints exactly "cards: <n>" and "bytes: <total size of the PNGs>".
 Spec and independent check: tools/test_card_images.py.
 """
@@ -97,14 +100,36 @@ def png(rows, pal, level):
             + chunk(b'IDAT', zlib.compress(bytes(raw), level)) + chunk(b'IEND', b''))
 
 
+def clear_pngs(outdir):
+    """Delete the *.png files in the output folder and nothing else.
+
+    The folder belongs to this tool, but a later run must not leave a stale picture behind
+    (a removed card would keep an old PNG). Only regular `*.png` entries are unlinked: any
+    other file, and any subdirectory, is left alone.
+    """
+    if not outdir.is_dir():
+        return 0
+    gone = 0
+    for p in outdir.iterdir():
+        if p.suffix.lower() == '.png' and not p.is_dir() and (p.is_file() or p.is_symlink()):
+            p.unlink()
+            gone += 1
+    return gone
+
+
 def main():
     ap = argparse.ArgumentParser(description='Extract the 900 card pictures as PNGs.')
     ap.add_argument('--level', type=int, default=LEVEL, help='zlib level (default: %(default)s)')
     a = ap.parse_args()
 
+    if not ROM.is_file():
+        print('extract_card_images: the ROM %s is missing (it is not tracked; copy it there)'
+              % ROM, file=sys.stderr)
+        return 1
     data = ROM.read_bytes()
     pal = palette(data)
     OUTDIR.mkdir(parents=True, exist_ok=True)
+    clear_pngs(OUTDIR)
     total = 0
     for card in range(1, COUNT + 1):
         ptr = int.from_bytes(data[TABLE - BASE + 4 * card:TABLE - BASE + 4 * card + 4], 'little')

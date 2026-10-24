@@ -56,7 +56,7 @@ Community tools and sources used (name, URL, version/commit, licence).
   (asm-differ imports both at startup), `levenshtein` and `cxxfilt` (its better diff algorithm and
   `--source`), installed into `private/venv/` (26 MiB). Where the distro's `python3` has no pip and no
   usable venv seed, `scripts/decomp_tools.sh` bootstraps pip *into that venv* from
-  `https://bootstrap.pypa.io/get-pip.py`. Nothing is installed system-wide.
+  `https://bootstrap.pypa.io/get-pip.py` (HTTPS only, not checksummed). Nothing is installed system-wide.
   Licences: MIT / BSD-3-Clause / Apache-2.0 per package.
 
 - **ghidra-mcp** (github.com/bethington/ghidra-mcp, commit

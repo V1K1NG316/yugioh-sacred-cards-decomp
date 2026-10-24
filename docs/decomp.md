@@ -220,7 +220,7 @@ load when the value is used as an unsigned char.
 `bash scripts/decomp_tools.sh` (once) clones both tools into `private/tools/` at pinned
 commits and installs their Python dependencies into `private/venv/`. If the distro's `python3` has
 no pip and no usable venv seed, pip is bootstrapped into the venv itself from
-`bootstrap.pypa.io/get-pip.py` (Arch's python has pip, so it is not needed there). Nothing is
+`bootstrap.pypa.io/get-pip.py`, HTTPS only and not checksummed (Arch's python has pip, so it is not needed there). Nothing is
 installed system-wide, nothing under `private/` is committed; the commit hashes, sizes and licences
 are in `docs/credits.md`. Without them, `diff_func`/`permute_func` say what is missing and stop.
 

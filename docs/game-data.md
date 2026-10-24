@@ -262,7 +262,7 @@ str r0,[r5,#8]          ; struct+0x08 = description pointer
 can't be put in the Deck."** So the column is a plain deck Cost used **unscaled**, compared directly against the
 Duelist Level.
 
-**Index (settled in `[039]`, reproducible with `PY tools/cost_index.py`)**: `sub_08006BE4` takes the card id in
+**Index (settled in `[039]`, reproducible with `PY docs/archive/windows-v2/tools/cost_index.py`)**: `sub_08006BE4` takes the card id in
 `r0`, zero-extends it into **r4**, and indexes *every* column with that one register -- ATK `u16 @ 0x080886E6 +
 2*r4`, DEF `+2*r4` from `0x08087FDC`, Cost `u32 @ 0x08088DF0 + 4*r4`, the byte rows `+r4`, and the name pointer via
 `sub_080073E4` = `*(u32 *)(0x08D310E0 + 4*r4)`. Name index, stat index and card id are therefore the same number:

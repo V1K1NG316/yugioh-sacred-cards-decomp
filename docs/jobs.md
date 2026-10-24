@@ -1,5 +1,9 @@
 ﻿# Local job log
 
+**Retired 2026-10-24:** the local-worker job queue (`ops/local-worker.ps1`, `ops/watch.py`, both now in
+`docs/archive/windows-v2/ops/`) was retired on 2026-10-24 with the rest of the Windows setup; this file is
+kept as a record of the jobs that ran.
+
 DeepSeek logs each batch of local jobs here (ids, purpose).
 
 ## 2026-10-12 — batch 1 (pipeline warm-up, created by DeepSeek on `deepseek/y1-shell`)

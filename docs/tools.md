@@ -22,11 +22,20 @@ pieces are the two pacman packages the owner installed.
   lines), and the permuter turned a deliberately broken copy (base score 5) into a score-0
   candidate.
 - **mGBA** — `mgba-qt` 0.10.5 (pacman, `/usr/bin/mgba-qt`, installed 2026-10-24). `-g` opens the
-  gdb stub on port 2345 (`mgba-qt --help`). `scripts/emu_groundtruth.sh` starts it on the ROM copy
-  `private/tmp/ygo.gba` (or `$MGBA` if set), waits for the stub, runs one `scripts/emu_*.py`, and
-  kills only the emulator PID it started. First Linux run 2026-10-24:
-  `emu_groundtruth.sh scripts/emu_anchors.py` → `ANCHORS OK`, exit 0. A window opens on the
-  desktop while it runs, which is expected.
+  gdb stub on **`0.0.0.0:2345`** (`mgba-qt --help`); the stub cannot be told to bind another
+  address or port. `scripts/emu_groundtruth.sh <script.py> [args]` starts it on the ROM copy
+  `private/tmp/ygo.gba` (or `$MGBA` if set), waits until `ss -ltnp` shows *its own* PID on port
+  2345, runs one `scripts/emu_*.py`, then stops it with SIGTERM and, after 3 s, SIGKILL (an
+  already-stopped emulator really does ignore the TERM). No argument → usage on stderr, exit 2;
+  anything already listening on 2345 → one-line refusal, exit 1.
+  **The port never reaches the LAN by default:** the emulator and the script both run inside a
+  private network namespace (`unshare --user --map-root-user --net`, with `ip link set lo up`
+  inside), so 2345 exists only on that namespace's loopback. `EMU_NO_NETNS=1` runs them in the
+  normal namespace instead; the stub is then open on all interfaces for the length of the run and
+  ufw is what keeps it private, so only set that when the namespaces are unavailable.
+  First Linux run 2026-10-24: `emu_groundtruth.sh scripts/emu_anchors.py` → `ANCHORS OK`, exit 0,
+  and `emu_card_image.py` reads the game's RAM through the stub. A window opens on the desktop
+  while it runs, which is expected.
 - **Ghidra 12.1.4** + **Temurin JDK 21** — downloaded into `private/tools/` by
   `scripts/ghidra_setup.sh` when decompiler drafts are wanted (they are optional: `make compare`,
   `match_func`, `diff_func` and the permuter do not need them).
