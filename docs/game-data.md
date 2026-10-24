@@ -229,8 +229,9 @@ Baby Dragon "Earth", Red-Eyes and Summoned Skull "Fiend" (A15).
   distance to the neighbour ~160/765) - it reads as dithered/noisy at 1:1, which is exactly the appearance the
   Y4 part 3 review rejected. Composed PNGs for the reviewer: `private/tmp/card_composed_001.png` (Blue-Eyes),
   `_002.png`, `_035.png` (Dark Magician), `_866.png`.
-* Extractor / decoder: `tools/extract_card_images.py` (job `card_images`, still queued - the file does not exist
-  yet) writes one 8-bit indexed PNG per card, `private/extracted/cards/<n>.png`, 24x24, with the palette above;
+* Extractor / decoder: `tools/extract_card_images.py` (job `card_images`, **done 2026-10-24** — stdlib only:
+  `zlib`/`struct` for the PNG, its own BIOS-LZ77 decoder) writes one 8-bit indexed PNG per card,
+  `private/extracted/cards/<n>.png`, 24x24, with the palette above;
   check `tools/test_card_images.py` (`anchors: 2 cards match the emulator dump` / `cards: 900` /
   `bytes: 1085114` / `ALL CHECKS PASSED`; it fails if the window moves, if the tile order changes, or if the PLTE
   is not `0x089C54B0`).
@@ -238,8 +239,10 @@ Baby Dragon "Earth", Red-Eyes and Summoned Skull "Fiend" (A15).
   `scripts/emu_groundtruth.sh` (launch mGBA on a ROM copy + run one script; mGBA 0.10.5 accepts one client per
   launch), `scripts/emu_card_image.py` (call the game's routine, dump what it wrote), `scripts/emu_picture_map.py`
   (the impulse test that measured the byte mapping), `scripts/emu_anchors.py` (re-derive the anchors from the ROM
-  and compare with the dumps). mGBA here is `D:\Custom_Pokemon\private\tools\mGBA\mGBA-0.10.5-win64`, run from a
-  copy under `private/tmp/` so nothing is written next to the original.
+  and compare with the dumps). mGBA here is `/usr/bin/mgba-qt` 0.10.5 (pacman; `mgba-qt --help`: `-g` opens the gdb
+  stub on port 2345), launched on a copy at `private/tmp/ygo.gba` so nothing is written next to the original, and
+  `emu_groundtruth.sh` kills only the PID it started. First Linux run 2026-10-24:
+  `bash scripts/emu_groundtruth.sh scripts/emu_anchors.py` → both anchors OK, `ANCHORS OK`, exit 0.
 
 ## Card Cost and the Duelist-Level gate (verified, DeepSeek 2026-10-12, Y4 part 4; index fixed Y5 [039])
 Closes the doubt in `[033]`. The card row's **Cost** is a 32-bit value from the table `0x08088DF0`

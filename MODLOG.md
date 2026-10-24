@@ -584,3 +584,32 @@ files are all tracked).
   needs pointing at `/usr/bin/mgba-qt` first.
 - Review of the port (3 Sonnet reviewers): `make compare` re-run from an empty `private/build` → `OK` in 1m22s, every
   function built from agbcc output (no asm fallback); deliberate wrong C → `FAIL`, exit 1.
+
+## 2026-10-24 06:49 — leftovers: card pictures, permuter/differ and mGBA on Linux (Hermes/DeepSeek)
+- New `tools/extract_card_images.py`: stdlib only (`struct`/`zlib` PNG writer, own BIOS-LZ77 decoder), reads the
+  900 pointers at `0x08D536F0` (entry n = card n), decodes 576-byte 8bpp 24x24 tile art, writes
+  `private/extracted/cards/1.png`..`900.png` (24x24, palette PNG, PLTE = 256 colours of `0x089C54B0`, no tRNS,
+  filter 0 per scanline). zlib level 9, which is what makes the total 1 085 114 bytes (levels 7/8/9 all do;
+  level 6 gives 1 085 115).
+  `python3 tools/test_card_images.py` → `anchors: 2 cards match the emulator dump` / `cards: 900` /
+  `bytes: 1085114` / `ALL CHECKS PASSED`, exit 0. `ls private/extracted/cards | wc -l` → 900.
+- `bash scripts/decomp_tools.sh` → `decomp_tools: decomp-permuter  8556c81d80d1c1af98a858c8f4dc951357f29139`,
+  `decomp_tools: asm-differ       0dd09af8f8008f1f880327cf0aca3b26d2562ea2`, `decomp_tools: creating
+  private/venv` (get-pip bootstrap; Arch python had no venv pip), `decomp_tools: python deps OK in
+  …/private/venv`, exit 0.
+- `bash tools/diff_func.sh sub_08014480` → asm-differ side-by-side with `CURRENT (0)`, i.e. no differing lines,
+  exit 0.
+- Permuter on a deliberately broken copy (`private/scratch/perm/sub_08014480.c`, `d[1] = p[8] - 1;` →
+  `- 2;`): `bash tools/permute_func.sh sub_08014480 2 --base private/scratch/perm/sub_08014480.c` → base score
+  **5**, `found new best score! (0 vs 5)`, 73 625 candidates in 2 min, `best.c` (score 0) in
+  `private/permuter/sub_08014480/`. `git status --short src/` empty — `src/` untouched.
+- `scripts/emu_groundtruth.sh` rewritten for the system emulator: `MGBA=${MGBA:-/usr/bin/mgba-qt}`, launched as
+  `"$MGBA" -g private/tmp/ygo.gba` (ROM copy made from `private/baserom.gba` when missing), waits for the gdb stub
+  on port 2345, and kills only the PID it started (the old `pkill -f 'private/tmp/mgba'` is gone).
+  `bash scripts/emu_groundtruth.sh scripts/emu_anchors.py` → both cards' composed image and art hashes OK,
+  `ANCHORS OK`, exit 0; `pgrep -x mgba-qt` afterwards → nothing left running.
+- Gates: `python3 tools/hash_rom.py` → ORIGINAL+BASEROM `sha1=d3710031520d9cdae70d870c60b1667285fe5230` `OK`,
+  exit 0; `python3 tools/guard_repo.py` → `guard: 1147 files checked, 0 failures`, exit 0; all 16
+  `tools/test_*.py` → PASS; `make compare` → `private/build/yugioh.gba: OK`, exit 0.
+- Docs: `docs/tools.md` (permuter/differ tested, mGBA bullet rewritten), `docs/game-data.md` (card-picture
+  extractor marked done, mGBA path/emulator harness line updated).

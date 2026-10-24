@@ -17,11 +17,16 @@ pieces are the two pacman packages the owner installed.
   commit `940def2c91d678ee671716b8b44a2223c0ff2c62`, built with `make CAPSTONE_ARCHS="arm"`. Turns
   `private/baserom.gba` + `private/asm/rom.cfg` into `private/asm/rom.s` (`scripts/disasm.sh`).
 - **decomp-permuter**, **asm-differ** — `private/tools/`, pinned commits, set up by
-  `scripts/decomp_tools.sh` into `private/venv/`. Only `permute_func`/`diff_func` need them.
-- **mGBA** — `mgba-qt` 0.10.5 (pacman, `/usr/bin/mgba-qt`, installed 2026-10-24). The emulator
-  ground-truth scripts (`scripts/emu_groundtruth.sh`, `scripts/emu_*.py`, `scripts/mgba_gdb.py`) are
-  ported to Linux but have not been run since the port, and `emu_groundtruth.sh` still launches a
-  portable copy (`private/tmp/mgba/mGBA`): point it at `mgba-qt` before first use.
+  `scripts/decomp_tools.sh` into `private/venv/`. Only `permute_func`/`diff_func` need them. Both
+  were first run on this PC on 2026-10-24: `diff_func sub_08014480` → `CURRENT (0)` (no differing
+  lines), and the permuter turned a deliberately broken copy (base score 5) into a score-0
+  candidate.
+- **mGBA** — `mgba-qt` 0.10.5 (pacman, `/usr/bin/mgba-qt`, installed 2026-10-24). `-g` opens the
+  gdb stub on port 2345 (`mgba-qt --help`). `scripts/emu_groundtruth.sh` starts it on the ROM copy
+  `private/tmp/ygo.gba` (or `$MGBA` if set), waits for the stub, runs one `scripts/emu_*.py`, and
+  kills only the emulator PID it started. First Linux run 2026-10-24:
+  `emu_groundtruth.sh scripts/emu_anchors.py` → `ANCHORS OK`, exit 0. A window opens on the
+  desktop while it runs, which is expected.
 - **Ghidra 12.1.4** + **Temurin JDK 21** — downloaded into `private/tools/` by
   `scripts/ghidra_setup.sh` when decompiler drafts are wanted (they are optional: `make compare`,
   `match_func`, `diff_func` and the permuter do not need them).
