@@ -1,7 +1,7 @@
 """Side-by-side diff of one function's C against the ROM's own bytes (Y5).
 
-Usage (Git Bash, from the repo root or from a job worktree):
-  PY tools/diff_func.py sub_08004750      # or: tools/diff_func.sh sub_08004750
+Usage (from the repo root or from a job worktree):
+  python3 tools/diff_func.py sub_08004750      # or: tools/diff_func.sh sub_08004750
 
 Compiles src/funcs/<name>.c with agbcc, links it at the function's ROM address, and shows the
 result next to the ROM's own instructions with asm-differ (private/tools/asm-differ/diff.py, set
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from match_func import CSV, MAIN, WSL_DISTRO, WSL_MAIN, load_functions, wsl_path  # noqa: E402
+from match_func import CSV, MAIN, load_functions  # noqa: E402
 
 BUILD = ('private', 'build', 'match')
 
@@ -49,8 +49,8 @@ def main():
     build_root = main_dir.joinpath(*BUILD).resolve()
     work = build_root / ('%s.diff.%d' % (name, os.getpid()))
     try:
-        cmd = ['wsl', '-d', WSL_DISTRO, '--cd', WSL_MAIN, '--', 'bash', 'scripts/diff_func.sh',
-               name, '0x%08X' % row['addr'], wsl_path(src.parent), wsl_path(work)]
+        cmd = ['bash', str(main_dir / 'scripts' / 'diff_func.sh'),
+               name, '0x%08X' % row['addr'], str(src.parent.resolve()), str(work)]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.stdout:
             print(r.stdout, end='')

@@ -48,9 +48,9 @@ that carries the `#8` opcode), so a duel without a name still has its own label.
 
 Usage
 -----
-    PY tools/duel_names.py                 write private/extracted/duel_names.tsv
-    PY tools/duel_names.py --scan          list every self-introduction found
-    PY tools/duel_names.py --duel 93       print the window of duel 93 in full
+    python3 tools/duel_names.py                 write private/extracted/duel_names.tsv
+    python3 tools/duel_names.py --scan          list every self-introduction found
+    python3 tools/duel_names.py --duel 93       print the window of duel 93 in full
 
 Read-only w.r.t. the ROM; the only file written is the output TSV (untracked).
 """

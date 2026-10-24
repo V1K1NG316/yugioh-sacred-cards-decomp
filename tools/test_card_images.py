@@ -36,7 +36,7 @@ Ground truth (measured in mGBA 0.10.5, REPORT [036]; see scripts/emu_*.py):
   tile buffer / picture buffer; the check recomputes both from the ROM and must reproduce
   them, so the pixel rule here is pinned to the running game, not to itself.
 
-Usage: PY tools/test_card_images.py
+Usage: python3 tools/test_card_images.py
 """
 import hashlib
 import struct

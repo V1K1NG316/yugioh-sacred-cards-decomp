@@ -7,11 +7,11 @@ def run(cmd, **kw):
 
 def main():
     # Determine paths 
-    project = pathlib.Path(r"D:\Yugioh_DeComp_V2")
+    project = pathlib.Path(__file__).resolve().parents[1]
     guard_script = project / "tools" / "guard_repo.py"
     baserom = project / "private" / "baserom.gba"
 
-    # Create throwaway test repo: D:\Yugioh_DeComp_V2\private\tmp\guardtest-<unix time>
+    # Create throwaway test repo: private/tmp/guardtest-<unix time>
     u = str(int(time.time()))
     test_dir = project / "private" / "tmp" / f"guardtest-{u}"
     if not test_dir.exists():

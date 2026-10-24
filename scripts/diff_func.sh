@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Y5: side-by-side diff of one function's C against the ROM's own bytes (asm-differ).
-# Run inside WSL from the repo root; tools/diff_func.sh (Git Bash) and tools/diff_func.py drive it:
+# Run from anywhere (tools/diff_func.py drives it):
 #   bash scripts/diff_func.sh <name> <0xADDR> <srcdir> [rundir]
 #
 # 1. scripts/match_func.sh builds <srcdir>/<name>.c with agbcc and links it at ADDR -- the same
@@ -18,7 +18,7 @@ set -euo pipefail
 NAME=$1
 ADDR=$2
 SRCDIR=$3
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 WORK=${4:-$REPO/private/build/match/$NAME.diff}
 DIFF=$REPO/private/tools/asm-differ/diff.py
 PY=$REPO/private/venv/bin/python3

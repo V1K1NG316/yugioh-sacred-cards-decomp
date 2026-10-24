@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Y3: generate private/asm/rom.s (whole-ROM disassembly, one file per function) and build it.
-# Run inside WSL from the repo root: wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/disasm.sh
+# Run from anywhere: bash scripts/disasm.sh
 # Output: private/asm/rom.cfg, rom_raw.s, rom_full.s, funcs/*.s, data/*.s, rom.s
 # (all generated, all untracked) and the tracked function list config/functions.csv.
 set -euo pipefail
-cd /mnt/d/Yugioh_DeComp_V2
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 PY=python3
 GBADISASM=private/tools/gbadisasm/gbadisasm

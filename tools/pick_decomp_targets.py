@@ -1,6 +1,6 @@
 """Pick the next functions to decompile (milestone Y5), smallest first.
 
-Usage: PY tools/pick_decomp_targets.py [N] [--min-code 6] [--max-code 64] [--list]
+Usage: python3 tools/pick_decomp_targets.py [N] [--min-code 6] [--max-code 64] [--list]
 
 A function is a candidate when config/functions.csv has it, it is THUMB (the ARM ones need a
 different agbcc and a different stub), and src/funcs/<name>.c does not exist yet. "Smallest" is

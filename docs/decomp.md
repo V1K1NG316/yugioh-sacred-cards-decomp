@@ -23,7 +23,7 @@ build is byte-identical only if the C is right.
 
 1. Finds `<name>` in `config/functions.csv` (main checkout): address, mode, extent (A5).
 2. Copies `src/funcs/<name>.c` from **this** checkout (a job worktree counts) into
-   `D:\Yugioh_DeComp_V2\private\build\match\<name>.<pid>\`, and runs `scripts/match_func.sh` there in WSL:
+   `private/build/match/<name>.<pid>/` in the main checkout, and runs `scripts/match_func.sh` there:
    `cpp -nostdinc -undef -std=gnu89 -I private/tools/agbcc/include -I private/tools/agbcc -I
    include` → `agbcc -mthumb-interwork -Wimplicit -Wparentheses -Werror -O2 -fhex-asm` →
    `arm-none-eabi-as -mcpu=arm7tdmi -mthumb-interwork`.
@@ -217,10 +217,10 @@ load when the value is used as an unsigned char.
 
 ## 10. Setting the two community tools up
 
-`bash scripts/decomp_tools.sh` (once, inside WSL) clones both tools into `private/tools/` at pinned
-commits and installs their Python dependencies into `private/venv/`. Ubuntu 24.04's `python3` has no
-pip, and the `python3-venv` package would be a system-wide install (Matter_Scatter's approval),
-so pip is bootstrapped into the venv itself from `bootstrap.pypa.io/get-pip.py`. Nothing is
+`bash scripts/decomp_tools.sh` (once) clones both tools into `private/tools/` at pinned
+commits and installs their Python dependencies into `private/venv/`. If the distro's `python3` has
+no pip and no usable venv seed, pip is bootstrapped into the venv itself from
+`bootstrap.pypa.io/get-pip.py` (Arch's python has pip, so it is not needed there). Nothing is
 installed system-wide, nothing under `private/` is committed; the commit hashes, sizes and licences
 are in `docs/credits.md`. Without them, `diff_func`/`permute_func` say what is missing and stop.
 

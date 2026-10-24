@@ -5,7 +5,7 @@ private/extracted/card_stats.tsv to match it byte for byte.
 Card property block (indexed by card number 0..900; card 0 is a dummy), see docs/game-data.md:
   u16 DEF @0x08087FDC, u16 ATK @0x080886E6, u32 @0x08088DF0, then eight u8 arrays every 901 bytes
   from 0x08089C04 (the one at 0x08089F89 is the level).
-Usage: PY tools/test_card_stats.py
+Usage: python3 tools/test_card_stats.py
 """
 import struct
 import subprocess

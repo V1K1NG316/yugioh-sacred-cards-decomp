@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the ROM string extractor's output (job J0002 / milestone Y2).
 
-Usage: PY tools/test_rom_strings.py     (run from anywhere; exits 0 only if right)
+Usage: python3 tools/test_rom_strings.py     (run from anywhere; exits 0 only if right)
 
 The extractor `tools/rom_strings.py` must write `private/extracted/strings.txt`,
 one entry per line, `0xADDR<TAB>text`, LF endings, ASCII.  This check re-reads

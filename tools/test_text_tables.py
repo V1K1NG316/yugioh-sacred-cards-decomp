@@ -16,7 +16,7 @@ table immediately after the previous one:
     <table address "0x%08X">\t<entries in that table>\t<index k, 0-based>\t<record address "0x%08X">\t<record bytes as lowercase hex>
 stdout exactly two lines: "tables: 4" and "records: 300".
 
-Usage: PY tools/test_text_tables.py
+Usage: python3 tools/test_text_tables.py
 """
 import struct
 import subprocess

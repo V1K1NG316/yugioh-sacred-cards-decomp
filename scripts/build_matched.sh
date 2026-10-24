@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Y5: put the matched C functions into the ROM build.
-# Run inside WSL from the repo root (the Makefile does it): bash scripts/build_matched.sh
+# Run from anywhere (the Makefile does it): bash scripts/build_matched.sh
 #
 # For every src/funcs/<name>.c it compiles the C with agbcc (scripts/match_func.sh) and rewrites
 # private/asm/funcs/<name>.s -- the generated disassembly of that one function -- with the
@@ -12,7 +12,7 @@
 # the ROM's bytes over its whole extent -- before `make compare` ever runs.
 # Data files, rom.s and every other generated file are left alone.
 set -euo pipefail
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 cd "$REPO"
 
 MATCHED=0

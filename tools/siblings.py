@@ -2,7 +2,7 @@
 (Claude, 2026-10-14.) Similarity = difflib ratio over the asm instruction sequence with registers, immediates and
 labels normalised away; only functions of similar size are compared. A close matched sibling's C is usually a far
 better draft than starting from scratch.
-Output: private/drafts/siblings.tsv  (unmatched, size, sibling, ratio)   Usage: PY tools/siblings.py [--min 0.75]
+Output: private/drafts/siblings.tsv  (unmatched, size, sibling, ratio)   Usage: python3 tools/siblings.py [--min 0.75]
 """
 import argparse
 import csv
@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = Path('D:/Yugioh_DeComp_V2')
+REPO = ROOT
 INS = re.compile(r'^\s+([a-z][a-z0-9.]*)\s*(.*)$')
 
 

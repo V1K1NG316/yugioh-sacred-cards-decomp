@@ -1,6 +1,6 @@
 """How much of the ROM is decompiled C (milestone Y5).
 
-Usage: PY tools/progress.py [--verbose]
+Usage: python3 tools/progress.py [--verbose]
 
 A function counts as matched when src/funcs/<name>.c exists. Its byte count is the length agbcc
 produced (private/build/match/<name>/size.txt: code + literal pool), which `make compare` proves

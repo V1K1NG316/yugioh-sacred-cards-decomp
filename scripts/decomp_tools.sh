@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Y5: fetch and set up the two community tools the matching loop uses. Run once, inside WSL:
+# Y5: fetch and set up the two community tools the matching loop uses. Run once:
 #   bash scripts/decomp_tools.sh
 #
 # - private/tools/decomp-permuter  github.com/simonlindholm/decomp-permuter  (randomized search
@@ -9,14 +9,14 @@
 # Both are pinned to a commit, so a run is reproducible; `git -C ... rev-parse HEAD` prints what
 # is checked out. Licences and commit hashes are recorded in docs/credits.md.
 #
-# - private/venv: the Python the permuter and asm-differ need. Ubuntu 24.04 ships python3 without
-#   pip (the python3-venv package would be a system-wide install, which needs Matter_Scatter's
-#   approval), so pip is bootstrapped *into the venv* from https://bootstrap.pypa.io/get-pip.py.
+# - private/venv: the Python the permuter and asm-differ need. If the distro's python3 ships no
+#   pip and no usable venv seed, pip is bootstrapped *into the venv* from
+#   https://bootstrap.pypa.io/get-pip.py (Arch's python has pip/ensurepip and skips that step).
 #   Everything stays in private/; nothing is installed system-wide.
 #
 # Safe to re-run: existing checkouts are fetched, the venv is reused.
 set -euo pipefail
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 TOOLS=$REPO/private/tools
 VENV=$REPO/private/venv
 PERM_COMMIT=8556c81d80d1c1af98a858c8f4dc951357f29139

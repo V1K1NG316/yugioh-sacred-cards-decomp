@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the permuter on many functions at once (Claude, 2026-10-14; Matter_Scatter: "use ~20 cores").
-#   bash tools/permute_many.sh <minutes> <parallel> name1 name2 ...      (Git Bash, from the repo root)
+#   bash tools/permute_many.sh <minutes> <parallel> name1 name2 ...      (from anywhere)
 # Each function runs tools/permute_func.sh with --jobs 2 and its draft private/drafts/<name>.c as the base
 # (or private/drafts/<name>.<tag>.c files, see STYLE below). A candidate the permuter scores 0 is re-checked
 # with the real gate (tools/match_func.py, in the scratch worktree private/worktrees/claude-draftcheck) and,
@@ -11,11 +11,10 @@
 # (the style-variant experiment); the result rows say which base won.
 set -uo pipefail
 MIN=$1; PAR=$2; shift 2
-R=/d/Yugioh_DeComp_V2
-PY="C:/Users/USER/AppData/Local/hermes/hermes-agent/.hermes-runtime/python/cpython-3.11-windows-x86_64-none/python.exe"
+R=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+PY=python3
 W=$R/private/worktrees/claude-draftcheck
 OUT=$R/private/permuter/many.tsv
-export MSYS_NO_PATHCONV=1
 cd "$R"
 touch "$OUT"
 

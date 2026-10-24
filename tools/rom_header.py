@@ -1,7 +1,8 @@
 """ROM header printer for Yu-Gi-Oh! The Sacred Cards (GBA cartridge header)."""
 import struct
+from pathlib import Path
 
-ROM_PATH = r"D:\Yugioh_DeComp_V2\private\baserom.gba"
+ROM_PATH = str(Path(__file__).resolve().parents[1] / 'private' / 'baserom.gba')
 
 def main():
     with open(ROM_PATH, "rb") as f:

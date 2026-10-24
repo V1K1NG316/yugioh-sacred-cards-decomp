@@ -2,7 +2,7 @@
 ratio >= --min, the two functions' ROM bytes are walked in parallel: every literal-pool word and every BL target that
 differs gives an address mapping (sibling value -> target value). The sibling's C is copied with the function
 renamed and every address-named symbol / hex constant mapped. The draft must still pass tools/match_func.py.
-Writes private/drafts/<name>.sib.c and prints the names.   Usage: PY tools/sibling_drafts.py [--min 0.95]
+Writes private/drafts/<name>.sib.c and prints the names.   Usage: python3 tools/sibling_drafts.py [--min 0.95]
 """
 import argparse
 import csv
@@ -11,7 +11,7 @@ import struct
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = Path('D:/Yugioh_DeComp_V2')
+REPO = ROOT
 B = 0x08000000
 
 

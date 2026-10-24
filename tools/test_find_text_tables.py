@@ -15,7 +15,7 @@ Spec the job must implement (ROM = private/baserom.gba, addresses = file offset 
     "<first site 0x%08X>\t<last site 0x%08X>\t<sites in the run>\t<first site's target 0x%08X>";
   * stdout exactly one line: "tables: N" (N = kept runs).
 
-Usage: PY tools/test_find_text_tables.py
+Usage: python3 tools/test_find_text_tables.py
 """
 import subprocess
 import sys

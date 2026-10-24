@@ -2,8 +2,8 @@
 # Y5: fetch the Java runtime and Ghidra used for headless decompiler drafts.
 # Portable by design: everything lands under private/tools/ (untracked) -- no apt, no
 # system-wide install, no PATH changes outside this project.
-# Run inside WSL from the repo root:
-#   wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_setup.sh
+# Run from anywhere:
+#   bash scripts/ghidra_setup.sh
 # Idempotent: a file that is already there is re-verified, not re-downloaded.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."

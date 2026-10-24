@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Y5: compile one C function with agbcc and link it at its ROM address.
 # Called by tools/match_func.py, never by hand -- the arguments are generated:
-#   wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/match_func.sh <name> <0xADDR> <srcdir> [rundir]
-# <srcdir> is a WSL path holding <name>.c (the checkout under test; usually a job worktree).
+#   bash scripts/match_func.sh <name> <0xADDR> <srcdir> [rundir]
+# <srcdir> holds <name>.c (the checkout under test; usually a job worktree).
 # <rundir> is where the build goes; tools/match_func.py passes private/build/match/<name>.<pid> so
 # that two runs at once (a local job's check next to `make compare`) never touch the same files.
 # scripts/build_matched.sh passes nothing and gets the shared private/build/match/<name>.
-# Everything else (agbcc, the ROM, the build dir) is the main checkout, /mnt/d/Yugioh_DeComp_V2.
+# Everything else (agbcc, the ROM, the build dir) is the repo this script lives in (the main checkout).
 # Writes into <rundir>:
 #   <name>.i/.s/.o   preprocessed, agbcc asm, object
 #   size.txt         the function's length in bytes (gcc's .size: body + literal pool)
@@ -21,7 +21,7 @@ NAME=$1
 ADDR=$2
 SRCDIR=$3
 
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 A=$REPO/private/tools/agbcc
 
 # Per-run work dir (see the header). The path is checked before anything is deleted: this script

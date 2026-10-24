@@ -28,7 +28,7 @@ Card names come from the name table: card c -> the English `$0` field of the rec
 `\\x87\\xNN`), `0x25` = `,`, `0x5E` and `0x23 0x30` = ` / `, 0x20..0x7E = itself, else `\\xNN`.
 Row order: duel 0..199, and inside a duel: deck rows, then list 08, then list 0C, then list 10.
 
-Usage: PY tools/test_duel_rewards.py
+Usage: python3 tools/test_duel_rewards.py
 """
 import struct
 import subprocess

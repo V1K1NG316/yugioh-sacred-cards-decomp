@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Y5: the ROM's own bytes for one function, as an object file.
-# Run inside WSL from the repo root (tools/diff_func.py and scripts/permute_func.sh do):
+# Run from the repo root (tools/diff_func.py and scripts/permute_func.sh do):
 #   bash scripts/rom_func_obj.sh <name> <outdir>
 #
 # <outdir>/<name>.o is the thing that matters: an arm-none-eabi object whose .text is that
@@ -21,7 +21,7 @@
 set -euo pipefail
 NAME=$1
 OUT=$2
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 
 ROW=$(awk -F, -v n="$NAME" 'NR > 1 && $2 == n {print $1, $3}' "$REPO/config/functions.csv")
 [ -n "$ROW" ] || { echo "rom_func_obj: $NAME is not in config/functions.csv" >&2; exit 2; }

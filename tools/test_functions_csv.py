@@ -32,7 +32,7 @@ import sys
 from array import array
 from pathlib import Path
 
-REPO = Path(r'D:\Yugioh_DeComp_V2')
+REPO = Path(__file__).resolve().parents[1]
 CSV = REPO / 'config' / 'functions.csv'
 ROM = REPO / 'private' / 'baserom.gba'
 BASE = 0x08000000

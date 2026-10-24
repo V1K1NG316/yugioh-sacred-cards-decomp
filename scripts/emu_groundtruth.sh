@@ -5,21 +5,20 @@
 # The mGBA copy lives in private/tmp/mgba and the ROM copy in private/tmp/ygo.gba
 # (created with: cp -r <mGBA dir>/. private/tmp/mgba/ ; cp private/baserom.gba private/tmp/ygo.gba).
 set -u
-ROOT=/d/Yugioh_DeComp_V2
-PY="C:/Users/USER/AppData/Local/hermes/hermes-agent/.hermes-runtime/python/cpython-3.11-windows-x86_64-none/python.exe"
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+PY=python3
 
 kill_mgba() {
-  for pid in $(powershell -NoProfile -Command "(Get-Process mGBA -ErrorAction SilentlyContinue).Id" 2>/dev/null | tr -d '\r'); do
-    [ -n "$pid" ] && taskkill /F /PID "$pid" >/dev/null 2>&1
-  done
+  pkill -f 'private/tmp/mgba' >/dev/null 2>&1
+  sleep 1
 }
 
 cd "$ROOT" || exit 1
 kill_mgba
 sleep 2
-( cd private/tmp/mgba && ./mGBA.exe -g -1 ../ygo.gba > ../mgba_run.log 2>&1 ) &
+( cd private/tmp/mgba && ./mGBA -g -1 ../ygo.gba > ../mgba_run.log 2>&1 ) &
 for _ in $(seq 1 25); do
-  netstat -ano 2>/dev/null | grep -q '0.0.0.0:2345' && break
+  ss -ltn 2>/dev/null | grep -q '0.0.0.0:2345\|\[::\]:2345\|\*:2345' && break
   sleep 1
 done
 sleep 6

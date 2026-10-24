@@ -6,9 +6,11 @@ import hashlib
 import shutil
 import sys
 import os
+from pathlib import Path
 
-ORIGINAL = r'D:\Yugioh_DeComp_V2\rom\sacred_cards_usa.gba'
-BASEROM = r'D:\Yugioh_DeComp_V2\private\baserom.gba'
+ROOT = Path(__file__).resolve().parents[1]
+ORIGINAL = str(ROOT / 'rom' / 'sacred_cards_usa.gba')
+BASEROM = str(ROOT / 'private' / 'baserom.gba')
 SIZE = 16777216
 SHA1 = 'd3710031520d9cdae70d870c60b1667285fe5230'
 SHA256 = '12d28e0994cbe3a6cc4903fdd3434646c6e912142b73324ffabb2b322a04a411'

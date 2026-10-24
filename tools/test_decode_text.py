@@ -28,7 +28,7 @@ stdout must hold exactly the data lines and nothing else.
 Fixed address list: private/baserom.gba word at 0x08D310E4 + 4k (card names, k = 0..899) and
 at 0x08E94E7C + 4k (card descriptions, k = 0..19).
 
-Usage: PY tools/test_decode_text.py
+Usage: python3 tools/test_decode_text.py
 """
 import struct
 import subprocess

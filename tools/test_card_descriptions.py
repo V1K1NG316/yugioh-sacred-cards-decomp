@@ -28,7 +28,7 @@ after its "$0" pair up to the next "$<digit>" pair, or to the end of the record 
 field. The extracted text is the English field, which holds no 0x87 escapes; the glyph path of
 the decoder is covered by tools/test_decode_text.py.
 
-Usage: PY tools/test_card_descriptions.py
+Usage: python3 tools/test_card_descriptions.py
 """
 import subprocess
 import sys

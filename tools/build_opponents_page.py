@@ -4,7 +4,7 @@ Reads private/baserom.gba with the verified formats in docs/game-data.md (card n
 duel table 0x08D35C28 -> records 0x080B4B5C + 0x28*k: deck +0x04, drop lists +0x08 / +0x0C / +0x10) and, if
 present, private/extracted/duel_names.tsv (duel -> opponent name). Writes the self-contained page
 private/extracted/opponents.html (game-derived: stays private, never committed).
-Usage: PY tools/build_opponents_page.py
+Usage: python3 tools/build_opponents_page.py
 """
 import collections
 import json

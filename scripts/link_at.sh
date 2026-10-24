@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Link one compiled object at one ROM address, with the ROM's other symbols stubbed out.
-# Run inside WSL from the repo root; called by scripts/match_func.sh and scripts/build_matched.sh:
+# Called by scripts/match_func.sh and scripts/build_matched.sh from the repo root:
 #   bash scripts/link_at.sh <workdir> <base> <object> <0xADDR>
 # Writes <workdir>/<base>.elf, <base>.bin (the object's .text bytes only), <base>.unresolved
 # (undefined symbols that are not NAME_<8 hex digits>) and <base>.ld.log.
@@ -16,7 +16,7 @@ WORK=$1
 BASE=$2
 OBJ=$3
 ADDR=$4
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 
 declare -A MODE
 while IFS=, read -r _ n m _rest; do MODE["$n"]=$m; done < <(tail -n +2 "$REPO/config/functions.csv")

@@ -2,8 +2,8 @@
 # Ghidra MCP (bethington/ghidra-mcp): build the headless server jar.
 # Portable by design: Maven and the built jar land under private/tools/ (untracked),
 # nothing is installed system-wide and no PATH outside this project changes.
-# Run inside WSL from the repo root:
-#   wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_mcp_build.sh
+# Run from anywhere:
+#   bash scripts/ghidra_mcp_build.sh
 # Needs private/tools/jdk (scripts/ghidra_setup.sh), private/tools/ghidra, and the
 # ghidra-mcp checkout (scripts/get_ghidra_mcp.sh). Idempotent: an existing jar is kept
 # unless you pass --force.

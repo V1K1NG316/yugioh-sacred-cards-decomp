@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Y5: run decomp-permuter on one function, time-boxed, and keep the best candidate it finds.
-# Run inside WSL from the repo root (tools/permute_func.sh wraps this for Git Bash):
+# Run from anywhere (tools/permute_func.sh wraps this):
 #   bash scripts/permute_func.sh <name> [minutes] [--base <file.c>] [--jobs N]
 #
-# Sets up D:\Yugioh_DeComp_V2\private\permuter\<name>\ from scratch:
+# Sets up private/permuter/<name>/ from scratch:
 #   target.o    the ROM's own bytes for this function (scripts/rom_func_obj.sh, which checks them
 #               against the ROM) -- the permuter scores every candidate against this
 #   base.c      src/funcs/<name>.c, or --base <file.c> to start from something else
@@ -37,7 +37,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 PERM=$REPO/private/tools/decomp-permuter/permuter.py
 PY=$REPO/private/venv/bin/python3
 DIR=$REPO/private/permuter/$NAME
@@ -72,7 +72,7 @@ cat > "$DIR/compile.sh" <<'COMPILE'
 set -euo pipefail
 IN=$1
 OUT=$3
-REPO=/mnt/d/Yugioh_DeComp_V2
+REPO=@REPO@
 A=$REPO/private/tools/agbcc
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
@@ -87,6 +87,10 @@ cpp -nostdinc -undef -std=gnu89 -I "$A/include" -I "$A" -I "$REPO/include" -o "$
 "$A/bin/$CC" -mthumb-interwork -Wimplicit -Wparentheses -O2 -fhex-asm -o "$T/c.s" "$T/c.i"
 bash "$REPO/scripts/asm_with_defsyms.sh" "$T/c.s" "$OUT"
 COMPILE
+
+# compile.sh is generated inside private/permuter/<name>/, so its own location says nothing about
+# the repo root: the @REPO@ placeholder above is replaced here with this checkout's root.
+sed -i "s|^REPO=@REPO@\$|REPO=$REPO|" "$DIR/compile.sh"
 
 bash "$REPO/scripts/rom_func_obj.sh" "$NAME" "$DIR"
 cp "$DIR/$NAME.o" "$DIR/target.o"
@@ -127,5 +131,5 @@ cp "$BESTDIR/source.c" "$DIR/best.c"
 printf 'permute_func: best score %s -> %s/best.c\n' "$BEST" "$DIR"
 if [ "$BEST" = 0 ]; then
   printf 'permute_func: score 0 -- check it before trusting it:\n'
-  printf '  PY tools/match_func.py %s   # with best.c copied to src/funcs/%s.c\n' "$NAME" "$NAME"
+  printf '  python3 tools/match_func.py %s   # with best.c copied to src/funcs/%s.c\n' "$NAME" "$NAME"
 fi

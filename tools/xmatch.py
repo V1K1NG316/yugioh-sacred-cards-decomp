@@ -5,7 +5,7 @@ whose matching decomp (github.com/CosmicScribe64/eds-decomp, MIT) is cloned in p
 Same compiler (old_agbcc) + same C => same instruction bytes, except what depends on addresses: BL targets and the
 literal-pool words that hold addresses. Both are masked; equal masked bytes of equal length => a "twin".
 Output: private/ref/twins.tsv  (ours, our_addr, size, eds_name, eds_addr, eds_unit, matched_here)
-Usage: PY tools/xmatch.py
+Usage: python3 tools/xmatch.py
 """
 import csv
 import hashlib
@@ -13,7 +13,7 @@ import struct
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = Path('D:/Yugioh_DeComp_V2')
+REPO = ROOT
 OURS = REPO / 'private' / 'baserom.gba'
 EDS = REPO / 'private' / 'ref' / 'eds.gba'
 EDS_FUNCS = REPO / 'private' / 'ref' / 'eds-decomp' / 'config' / 'functions.tsv'

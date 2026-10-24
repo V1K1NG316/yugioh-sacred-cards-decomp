@@ -1,6 +1,8 @@
 ﻿"""Check indexed (staged/committed) files against guard rules."""
 import subprocess, sys, pathlib
 
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
 
 def main():
     repo = None
@@ -12,7 +14,7 @@ def main():
         else:
             i += 1
     if not repo:
-        repo = r"D:\Yugioh_DeComp_V2"
+        repo = str(ROOT)
 
     result = subprocess.run(
         ["git", "-C", repo, "ls-files", "-s", "-z"],
@@ -21,7 +23,9 @@ def main():
     entries = result.stdout.split(b"\x00") if result.stdout.strip() else []
 
     # Read baserom for GBA header check (bytes 0x4..0xA0)
-    baserom_path = pathlib.Path(r"D:\Yugioh_DeComp_V2\private\baserom.gba")
+    baserom_path = pathlib.Path(repo) / "private" / "baserom.gba"
+    if not baserom_path.exists():
+        baserom_path = ROOT / "private" / "baserom.gba"
     if not baserom_path.exists():
         print("FAIL: private/baserom.gba missing")
         return 2

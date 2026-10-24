@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fetch bethington/ghidra-mcp into private/tools/ghidra-mcp (untracked, portable).
-# Run inside WSL from the repo root:
-#   wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/get_ghidra_mcp.sh [commit]
+# Run from anywhere:
+#   bash scripts/get_ghidra_mcp.sh [commit]
 # The commit is pinned: what ships is fetched, recorded in docs/credits.md, and never updated
 # silently. Re-running with the same commit only checks it is the same checkout.
 set -euo pipefail

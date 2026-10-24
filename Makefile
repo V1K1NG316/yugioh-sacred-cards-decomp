@@ -1,4 +1,4 @@
-# Build the ROM. Run inside WSL from the repo root; paths are relative to the repo root.
+# Build the ROM from anywhere (`make -C <repo>`); paths are relative to the repo root.
 #
 # `make compare`      -- build private/asm/rom.s (the Y3 disassembly) and compare
 #                        the result with the original: byte-identical or bust.
@@ -29,7 +29,7 @@ all: $(ROM)
 
 # The disassembly is generated, not authored; keep it out of make (see scripts/disasm.sh).
 $(SRC):
-	@echo "$(SRC) is missing -- generate it: wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/disasm.sh"
+	@echo "$(SRC) is missing -- generate it: bash scripts/disasm.sh"
 	@exit 1
 
 $(OBJ): $(SRC) $(PARTS) $(MATCHED_C) asm/macros.inc ld_script.txt $(BUILD_SCRIPTS)

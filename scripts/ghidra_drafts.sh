@@ -3,8 +3,8 @@
 # Output: private/ghidra/<name>.c (one non-matching draft per function, untracked),
 #         private/ghidra/project/ (the analysed Ghidra project, reused on re-runs).
 #
-# Run inside WSL from the repo root:
-#   wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_drafts.sh
+# Run from anywhere:
+#   bash scripts/ghidra_drafts.sh
 #   ... --only sub_080016CC       # re-decompile one function (cheap: no re-import, no analysis)
 #
 # First run does three things: set up (scripts/ghidra_setup.sh) -> import the ROM raw as

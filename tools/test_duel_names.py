@@ -38,7 +38,7 @@ to the *file* alone is overwritten and not trusted; what it really pins is the m
 window rule, the lexicon, the deck check and the exclusions.  Proven by breaking those in the
 tool and watching this check fail (see private/tmp/nm/break_test.py in the REPORT).
 
-Usage: PY tools/test_duel_names.py
+Usage: python3 tools/test_duel_names.py
 """
 import re
 import struct

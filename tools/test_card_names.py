@@ -4,7 +4,7 @@ Runs tools/extract_card_names.py, recomputes the expected output independently a
 private/extracted/card_names.tsv to match it byte for byte.
 Card-name pointer table: 900 words at ROM 0x08D310E4 (card 1 = Blue-Eyes White Dragon). Each word points
 to a record `$0<English>$1<French>$2<German>$3<Italian>$4<Spanish>$5<Japanese>` + NUL.
-Usage: PY tools/test_card_names.py
+Usage: python3 tools/test_card_names.py
 """
 import struct
 import subprocess

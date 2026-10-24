@@ -1,17 +1,17 @@
 """Match one decompiled C function against the ROM bytes (Y5).
 
-Usage (Git Bash, from the repo root or from a job worktree):
-  PY tools/match_func.py sub_0800AF94
+Usage (from the repo root or from a job worktree):
+  python3 tools/match_func.py sub_0800AF94
 
 Reads the function's address from config/functions.csv (main checkout), compiles
-src/funcs/<name>.c with agbcc inside WSL (scripts/match_func.sh), links it at that address,
+src/funcs/<name>.c with agbcc (scripts/match_func.sh), links it at that address,
 and compares the linked bytes -- the whole function, literal pool included -- with the ROM.
 Exit 0 only on an exact match. On a mismatch it prints the first differing offset and a
 side-by-side disassembly of the ROM bytes and ours.
 
   src/funcs/<name>.c comes from *this* checkout (a job worktree counts); the compiler, the
-  ROM and all build output come from the main checkout, D:\\Yugioh_DeComp_V2, so that a job
-  can never corrupt them.
+  ROM and all build output come from the main checkout -- this tool's own repo by default, so
+  that a job can never corrupt them.
 
   Each run gets its own build directory, private/build/match/<name>.<pid>, which is deleted
   again when the run ends. Two runs at the same time (a local job's check while `make compare`
@@ -26,20 +26,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-MAIN = Path(r'D:\Yugioh_DeComp_V2')
-WSL_DISTRO = 'Ubuntu-24.04'
-WSL_MAIN = '/mnt/d/Yugioh_DeComp_V2'
+MAIN = Path(__file__).resolve().parents[1]
 BUILD = ('private', 'build', 'match')
 CSV = 'config/functions.csv'
 DIS_LINE = re.compile(r'^\s*([0-9a-f]+):\s+([0-9a-f ]+?)\s\s+(.*)$')
-
-
-def wsl_path(p):
-    """D:\\Yugioh_DeComp_V2\\src -> /mnt/d/Yugioh_DeComp_V2/src (for the WSL side)."""
-    p = Path(p).resolve()
-    parts = p.parts
-    drive = parts[0][0].lower()
-    return '/mnt/%s/%s' % (drive, '/'.join(parts[1:]))
 
 
 def load_functions(csv_path):
@@ -140,8 +130,8 @@ def main():
 
     work, keep = run_dir_for(a, main_dir, name)
     try:
-        cmd = ['wsl', '-d', WSL_DISTRO, '--cd', WSL_MAIN, '--', 'bash', 'scripts/match_func.sh',
-               name, '0x%08X' % row['addr'], wsl_path(src.parent), wsl_path(work)]
+        cmd = ['bash', str(main_dir / 'scripts' / 'match_func.sh'),
+               name, '0x%08X' % row['addr'], str(src.parent.resolve()), str(work)]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
             if r.stdout:

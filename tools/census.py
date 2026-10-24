@@ -6,7 +6,7 @@ after something that ends code: `bx lr` (0x4770), `bx rN` (0x47x0), `pop {..., p
 branch (0xE000-0xE7FF), or alignment/literal padding. Bare `bx lr` stubs are found the same way. This is a
 heuristic: candidates still need a look (or the asm) before the function list is split.
 
-Usage: PY tools/census.py [--tsv OUT]     (reads private/baserom.gba from the main checkout)
+Usage: python3 tools/census.py [--tsv OUT]     (reads private/baserom.gba from the main checkout)
 """
 import argparse
 import csv
@@ -14,7 +14,7 @@ import struct
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ROM = Path('D:/Yugioh_DeComp_V2/private/baserom.gba')
+ROM = ROOT / 'private' / 'baserom.gba'
 B = 0x08000000
 
 

@@ -16,7 +16,7 @@ and exercises four calls:
                                         touched by this test)
 
 Run inside WSL from the repo root, with the server up:
-  wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- ./private/venv/bin/python tools/ghidra_mcp_smoke.py
+  ./private/venv/bin/python tools/ghidra_mcp_smoke.py
 
 Exit 0 = every step answered as expected. Nothing here is a substitute for a real
 matching-C check; it only proves the pipe works end to end.

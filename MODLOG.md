@@ -535,3 +535,52 @@ files are all tracked).
   `git ls-remote` → 93455da2d9cda840f592a6dcd6a18cfb7c215b36 refs/heads/main.
 - Update later: run make_public.sh again, then the same push with `--force` (history is re-written each time, same ids
   for unchanged commits).
+
+## 2026-10-24 06:34 — Linux port: toolchain built here, `make compare` OK natively (Hermes/DeepSeek)
+- Why: the project runs on the owner's Arch PC since 2026-10-24; no `D:\`, `/mnt/d`, WSL or Windows Python may
+  be left in `tools/`, `scripts/` or the `Makefile`.
+- Toolchain check: `arm-none-eabi-as --version` → GNU assembler 2.47.20260726 (target arm-none-eabi);
+  `python3 --version` → 3.14.9; host `cpp`/`gcc` 16.2.1.
+- agbcc: `git clone https://github.com/pret/agbcc private/tools/agbcc-src` → commit
+  `da598c1d918402c42c0c0d7128ba14567f3175e9`; `./build.sh` exit 0 (log `private/tools/agbcc-build.log`);
+  `./install.sh <repo>/private` → `private/tools/agbcc/{bin,include,lib}`.
+  `ls private/tools/agbcc/bin` → `agbcc` (3798352 B), `agbcc_arm` (4953848 B), `old_agbcc` (3798088 B).
+- gbadisasm (Y3 disassembler, not in git): clone `jiangzhengwenjz/gbadisasm` at
+  `940def2c91d678ee671716b8b44a2223c0ff2c62`, `make CAPSTONE_ARCHS="arm"` → exit 0,
+  `private/tools/gbadisasm/gbadisasm` (758896 B).
+- Ported — repo root is now found from each script's own location, `wsl ... -- bash x.sh` is a plain
+  `bash x.sh`, `wsl_path()` is gone: `scripts/{match_func,build_matched,link_at,rom_func_obj,diff_func,
+  permute_func,disasm,build,dis_range,decomp_tools,emu_groundtruth}.sh`, `tools/{diff_func,permute_func,
+  permute_many}.sh`, `Makefile` (missing-rom.s hint); `tools/{match_func,diff_func,hash_rom,guard_repo,
+  test_guard,test_functions_csv,test_rom_header,rom_header,census,code_map,find_functions,xmatch,siblings,
+  sibling_drafts,gen_wrapper_drafts,build_readable_page,make_job,make_decomp_job}.py`; `PY tools/x.py`
+  in usage/docstrings → `python3 tools/x.py`. `make_job.py`'s `PY` token is now `sys.executable`.
+- Not ported, left untouched (Windows-only per the brief): `tools/{backup_hermes,newest_session,
+  deepseek_spend,deepseek_balance,status,cost_index}.py`.
+- `bash scripts/disasm.sh` → `loop 1: function list stable at 1977 rows`, 1977 function files + 253 data files,
+  `.incbin` 16565922 B, exit 0; `config/functions.csv` unchanged (git status clean under `config/`).
+- `make compare` (cold: all 1025 C functions compiled) → `build_matched: 1025 C function(s), 48120 bytes from C
+  linked into the ROM` → `private/build/yugioh.gba: OK`, real 1m23.166s. Second run, nothing to rebuild → `OK`,
+  real 0m0.054s.
+- Gates: `python3 tools/hash_rom.py` → ORIGINAL+BASEROM `sha1=d3710031520d9cdae70d870c60b1667285fe5230`
+  `sha256=12d28e09…a411  OK`, exit 0. `python3 tools/guard_repo.py` → `guard: 1147 files checked, 0 failures`,
+  exit 0.
+- `tools/test_*.py`, run one by one with `python3`: 15 pass. `test_card_images.py` exits 1 with
+  `FAIL tools/extract_card_images.py does not exist` — that extractor was never committed
+  (`git log --all -- tools/extract_card_images.py` is empty), so the failure predates the port.
+- `tools/match_func.py` on `sub_08004750`, `sub_0800AF94`, `sub_08014480` → MATCH, 12 / 10 / 28 bytes identical,
+  exit 0. Discrimination test in `private/scratch/matchtest/` (its own `tools/match_func.py` + a copy of
+  `sub_08014480.c` with `p[8] - 1` → `p[8] - 2`): `FAIL … first difference at +0xC (rom 01, ours 02);
+  1/28 bytes differ`, exit 1; `git status --short src/` empty.
+- Residual grep (`tools/ scripts/ Makefile`) for `D:[\/]`, `/mnt/d`, `wsl `, `wsl_path`, `Ubuntu-24.04`:
+  only `tools/status.py` and `tools/deepseek_spend.py`, the two not ported.
+- Follow-ups: `README.md` still says "Building (WSL, Ubuntu 24.04)" (outside this brief's allowed paths); mGBA is
+  not installed, so `scripts/emu_*` are ported but have not been run; agbcc commit and build recorded in
+  `docs/credits.md`, toolchain list rewritten in `docs/tools.md`.
+
+## 2026-10-24 (Claude) — correction to the Linux port entry
+- "mGBA is not installed" above is wrong: `mgba-qt` 0.10.5-5 was installed by the owner at 06:27 (`pacman -Q mgba-qt`).
+  The emulator scripts are still unrun; `scripts/emu_groundtruth.sh` expects a portable `private/tmp/mgba/mGBA` and
+  needs pointing at `/usr/bin/mgba-qt` first.
+- Review of the port (3 Sonnet reviewers): `make compare` re-run from an empty `private/build` → `OK` in 1m22s, every
+  function built from agbcc output (no asm fallback); deliberate wrong C → `FAIL`, exit 1.

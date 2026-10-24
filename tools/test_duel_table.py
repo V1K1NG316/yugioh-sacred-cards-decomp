@@ -28,7 +28,7 @@ Invariants asserted here (each one is a claim in docs/game-data.md):
   * all list ids are 1..900;
   * the 130 opcode sites: the byte after the id is 0x00, and every id is < 200.
 
-Usage: PY tools/test_duel_table.py
+Usage: python3 tools/test_duel_table.py
 """
 import struct
 import subprocess

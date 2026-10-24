@@ -6,9 +6,9 @@ private/drafts/make_batch5-7.sh). No guessing: a function is drafted only if its
 
 Callees are read from the asm (`bl sub_XXXXXXXX`). Everything else is skipped. Drafts go to
 private/drafts/<name>.c (game-derived, never committed); existing drafts and matched functions are skipped.
-Every draft must still pass `PY tools/match_func.py <name>` before it is queued.
+Every draft must still pass `python3 tools/match_func.py <name>` before it is queued.
 
-Usage: PY tools/gen_wrapper_drafts.py [--skip-list FILE] [--limit N]   (prints the drafted names)
+Usage: python3 tools/gen_wrapper_drafts.py [--skip-list FILE] [--limit N]   (prints the drafted names)
 """
 import argparse
 import csv
@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = Path('D:/Yugioh_DeComp_V2')   # private/ lives in the main checkout, also when run from a worktree
+REPO = ROOT   # private/ lives in the main checkout, also when run from a worktree
 INSTR = re.compile(r'^\s+([a-z][a-z.]*)\b(.*)$')
 
 

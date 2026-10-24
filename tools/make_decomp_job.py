@@ -1,11 +1,11 @@
 """Queue one local job that decompiles one function into matching C (milestone Y5).
 
 Usage:
-  PY tools/make_decomp_job.py sub_080243A0            # queue it (after this tool is merged on main)
-  PY tools/make_decomp_job.py sub_080243A0 --dry-run  # show the recipe and the make_job.py command
+  python3 tools/make_decomp_job.py sub_080243A0            # queue it (after this tool is merged on main)
+  python3 tools/make_decomp_job.py sub_080243A0 --dry-run  # show the recipe and the make_job.py command
 
 The job may change exactly one file, src/funcs/<name>.c, and its check is
-`PY tools/match_func.py <name>`: the worker runs agbcc, links the result at the function's ROM
+`python3 tools/match_func.py <name>`: the worker runs agbcc, links the result at the function's ROM
 address and compares the bytes, so "done" cannot be claimed, only measured. Nothing is queued
 here by itself -- run this tool when you mean it.
 """
@@ -17,13 +17,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import romcode  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-PY = 'C:/Users/USER/AppData/Local/hermes/hermes-agent/.hermes-runtime/python/cpython-3.11-windows-x86_64-none/python.exe'
+PY = sys.executable
 
 # Lessons from the pilot (J0042: reading rules; J0045: the model thought in circles for 2 x 30 min and never
 # re-ran the test, although J0044 had found the fix). Plain string: not passed through str.format.
 PILOT_TIPS = (
     "HOW TO WORK: run the test after EVERY change, right away. Do not work out bytes, offsets or pool order\n"
-    "in your head; the test and `PY tools/diff_func.py <name>` show them. Think a few lines, then test.\n"
+    "in your head; the test and `python3 tools/diff_func.py <name>` show them. Think a few lines, then test.\n"
     "READING RULES:\n"
     "- `movs rN, #X` then `lsls rN, rN, #Y` loads the number X << Y (e.g. #0x80 then #7 = 0x4000), not X.\n"
     "- `cmp rA, rB` + branch: write the C comparison with the operands in that same order (`a > b`, not `b < a`).\n"
@@ -36,10 +36,10 @@ RECIPE = """Write one C file that compiles with agbcc to exactly the ROM's bytes
 `{name}` at {addr} in Yu-Gi-Oh! The Sacred Cards (GBA). #1 is the ROM's own disassembly, #2 is the
 style to copy, #4 is the only test that counts.
 
-1. Read the disassembly: `D:/Yugioh_DeComp_V2/private/asm/funcs/{name}.s` (absolute path: your worktree has no private/asm).
+1. Read the disassembly: `{root}/private/asm/funcs/{name}.s` (absolute path: your worktree has no private/asm).
    That path is for READING only. Write your C file ONLY inside your worktree:
-   `D:/Yugioh_DeComp_V2/private/worktrees/<your job id>/src/funcs/{name}.c`. Never write into
-   `D:/Yugioh_DeComp_V2/src/` (the main project): a file there fails the job.
+   `{root}/private/worktrees/<your job id>/src/funcs/{name}.c`. Never write into
+   `{root}/src/` (the main project): a file there fails the job.
    Lines starting with `@` are comments. `{name}: @ {addr}` is the function start. A line like
    `_08004758: .4byte 0x0201FCC0` is a literal pool word: the ROM loads that constant with
    `ldr rN, _08004758` and you must reproduce it without writing it yourself (see rule 3c).
@@ -68,7 +68,7 @@ style to copy, #4 is the only test that counts.
    e. Match the shape: same number of instructions, same registers if you can, arguments read from
       r0/r1 and the result returned in r0.
 
-4. Test: `PY tools/match_func.py {name}`
+4. Test: `python3 tools/match_func.py {name}`
    - Exit code 0 and a line `MATCH {name} @ {addr}: N bytes identical` means you are done.
    - A `FAIL` line prints the first differing offset, both byte strings, and a side-by-side
      disassembly with the differing instructions marked. Read it: `rom` is the truth, `ours` is
@@ -77,11 +77,11 @@ style to copy, #4 is the only test that counts.
      NOTHING (`void`; r0 only carries the return address). `pop {{r1}}` + `bx r1` means it returns a
      value in r0. A callee whose result is unused can be declared `void`. Do not fight this rule.
      The same rule decides how you DECLARE a function you call: open its asm file
-     (`D:/Yugioh_DeComp_V2/private/asm/funcs/<callee>.s`) and look at ITS end: `pop {{r0}}` = declare it `void`.
+     (`{root}/private/asm/funcs/<callee>.s`) and look at ITS end: `pop {{r0}}` = declare it `void`.
    - Common causes of a near miss: operands in the wrong order (`sub` vs reversed), a variable gcc
      can remove (write the expression in one go instead of storing to a temporary), signed vs
      unsigned (`ldrsb` vs `ldrb`), or an `if` gcc turns into a conditional move.
-   - To see a near miss instruction by instruction, run `PY tools/diff_func.py <name>` (the same
+   - To see a near miss instruction by instruction, run `python3 tools/diff_func.py <name>` (the same
      thing as `tools/diff_func.sh <name>`): the ROM's instructions on the left, yours on the right,
      differing lines marked. It builds exactly what the check builds, so the two never disagree.
    - The Ghidra draft uses `in_lr`, `undefined4`, `in_stack_...` and `SUB84`/`ZEXT` calls: those
@@ -135,7 +135,7 @@ def main():
     else:
         draft = ''
 
-    text = RECIPE.format(name=a.name, addr='0x%08X' % addr, draft=draft)
+    text = RECIPE.format(name=a.name, addr='0x%08X' % addr, draft=draft, root=ROOT.as_posix())
     if a.pilot_draft:
         # Pilot (Matter_Scatter, 2026-10-12): DeepSeek thinks, the local model types, tests and polishes.
         pd = Path(a.pilot_draft).resolve()
@@ -143,7 +143,7 @@ def main():
             sys.exit('pilot draft %s does not exist' % pd)
         text = (("START HERE (pilot job). A stronger model wrote a draft: `%s` (read only).\n"
                  "1. FIRST `cd` into your own folder (the worktree path at the top of this message), check with `pwd`,\n"
-                 "   THEN copy with exactly this command (relative target; never D:/Yugioh_DeComp_V2/src):\n"
+                 "   THEN copy with exactly this command (relative target; never the main checkout's src/):\n"
                  "   `cp %s src/funcs/%s.c`\n"
                  "2. Run the test (step 4). MATCH: commit (step 6), done.\n"
                  "3. FAIL: only SMALL fixes the diff points at (a type, the order of two statements, a cast,\n"

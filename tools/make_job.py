@@ -1,35 +1,40 @@
 """Create a job for the local worker (the only supported way to add jobs).
 
 Usage (one line):
-  PY tools/make_job.py --title "Name function 0x08001234" --kind name \
-      --allowed config/symbols.csv --check "PY tools/check_symbols.py" \
+  python3 tools/make_job.py --title "Name function 0x08001234" --kind name \
+      --allowed config/symbols.csv --check "python3 tools/check_symbols.py" \
       --instructions-file private/jobs/drafts/name_0x08001234.md [--max-attempts 2]
 A job must be small (one function / one table / one file), name every file it may change (--allowed, glob ok),
-and carry a check command that exits 0 ONLY when the work is right (run with Git Bash inside the job's worktree).
-A word `PY` in --check is expanded to the full quoted Python path. Every .py file the check names must already be
-committed on `main` (the worktree starts from main): get Claude to merge your branch first, or the job is refused.
+and carry a check command that exits 0 ONLY when the work is right (run inside the job's worktree).
+A word `PY` in --check is expanded to the full quoted path of this Python. Every .py file the check names must already
+be committed on `main` (the worktree starts from main): get Claude to merge your branch first, or the job is refused.
 Each worktree gets a read-only copy of the ROM at private/baserom.gba.
 Prints the new job id. Jobs land in private/jobs/queue/ and the local worker picks them up oldest first.
 """
 import argparse, json, re, subprocess, sys, time
 from pathlib import Path
 
-REPO = Path(r'D:\Yugioh_DeComp_V2')
+REPO = Path(__file__).resolve().parents[1]
 JOBS = REPO / 'private' / 'jobs'
-PY = 'C:/Users/USER/AppData/Local/hermes/hermes-agent/.hermes-runtime/python/cpython-3.11-windows-x86_64-none/python.exe'
+PY = sys.executable
 KINDS = ['decompile', 'name', 'extract', 'doc', 'script', 'test', 'other']
-PREFIXES = ('d:/yugioh_decomp_v2/', '/d/yugioh_decomp_v2/', '/mnt/d/yugioh_decomp_v2/')
+
+
+def rel_in_repo(tok):
+    """A .py the check names, as a path relative to the repo root (absolute paths inside the
+    repo are accepted and cut down; anything else is taken as already relative)."""
+    rel = tok.replace('\\', '/')
+    root = REPO.as_posix().rstrip('/')
+    if rel.lower().startswith(root.lower() + '/'):
+        rel = rel[len(root) + 1:]
+    return rel
 
 
 def fix_check(check):
     """Expand PY; refuse .py files in the check that are not committed on main."""
     check = re.sub(r'(?<![\w/.-])PY(?![\w/.-])', '"%s"' % PY, check)
     for tok in re.findall(r'[\w:/\\.-]+\.py\b', check):
-        rel = tok.replace('\\', '/')
-        if rel.lower().startswith(PREFIXES):
-            rel = rel.split('/', 3 if rel.startswith('/d/') else 2)[-1]
-            if rel.lower().startswith('yugioh_decomp_v2/'):
-                rel = rel.split('/', 1)[1]
+        rel = rel_in_repo(tok)
         r = subprocess.run(['git', '-C', str(REPO), 'cat-file', '-e', 'main:' + rel], capture_output=True)
         if r.returncode != 0:
             sys.exit(f'check names {tok} ({rel}), which is not committed on main: ask Claude to merge it first')

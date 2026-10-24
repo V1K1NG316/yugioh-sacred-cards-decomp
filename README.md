@@ -24,7 +24,8 @@ Machine-specific paths use the placeholder `USER`.
 | Y4 | Card names/stats/passwords, text, duel decks and prize pools decoded | mostly done (card pictures open) |
 | Y5 | Functions rewritten in C that compile to the same bytes | in progress: see `src/funcs/` |
 
-## Building (WSL, Ubuntu 24.04)
-Put your ROM at `rom/sacred_cards_usa.gba`, copy it to `private/baserom.gba`, generate the disassembly with
-`bash scripts/disasm.sh`, then `make compare` (needs agbcc/old_agbcc and binutils for arm-none-eabi; see
-`docs/decomp.md` and `docs/tools.md`).
+## Building (Linux; tested on Arch, 2026-10-24)
+Put your ROM at `rom/sacred_cards_usa.gba`, copy it to `private/baserom.gba`, check it with
+`python3 tools/hash_rom.py`, build agbcc/old_agbcc and gbadisasm into `private/tools/` (see `docs/tools.md`),
+generate the disassembly with `bash scripts/disasm.sh`, then `make compare` (needs `arm-none-eabi` binutils and a
+host `cpp`; see `docs/decomp.md`). A full rebuild with all matched C takes about 1.5 minutes.

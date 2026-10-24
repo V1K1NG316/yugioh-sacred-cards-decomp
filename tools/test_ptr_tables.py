@@ -3,7 +3,7 @@
 Runs tools/find_ptr_tables.py, then recomputes the expected output independently and requires
 private/extracted/ptr_tables.txt to match it byte for byte (so nothing can be missing or extra).
 Run from the repo root or a job worktree: paths come from this file's location.
-Usage: PY tools/test_ptr_tables.py
+Usage: python3 tools/test_ptr_tables.py
 """
 import struct
 import subprocess

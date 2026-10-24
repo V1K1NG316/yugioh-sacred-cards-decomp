@@ -16,7 +16,7 @@ Spec the job must implement (ROM = private/baserom.gba, addresses = file offset 
     digits of the ROM address) holding the decompressed bytes; stdout exactly
     "blobs: N" / "out bytes: N" / "in bytes: N".
 
-Usage: PY tools/test_lz77.py
+Usage: python3 tools/test_lz77.py
 """
 import subprocess
 import sys

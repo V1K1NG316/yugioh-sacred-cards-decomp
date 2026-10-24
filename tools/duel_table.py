@@ -28,7 +28,7 @@ What the table is (all verified, see docs/game-data.md "Opponents, decks and dro
     picks the first entry whose weight is greater than the roll; `sub_08016768` does the same
     for record +0x0C with a roll in 0..0x752F (29999). Both stop at a zero id.
 
-Usage: PY tools/duel_table.py
+Usage: python3 tools/duel_table.py
 """
 import struct
 import sys

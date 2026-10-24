@@ -4,7 +4,7 @@ Reads private/readable/<name>.c (first line: `// <proposed> — <purpose> [confi
 private/asm/funcs/<name>.s (bl targets -> call graph) and src/funcs/ (Track A: byte-matched or not).
 Writes private/extracted/readable/{index.html, index.json, c/<name>.c}. Game-derived: stays in private/, never
 committed or published. View: launch config `extracted-pages` -> http://localhost:8765/readable/
-Usage: PY tools/build_readable_page.py
+Usage: python3 tools/build_readable_page.py
 """
 import csv
 import json
@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = Path('D:/Yugioh_DeComp_V2')          # private/ lives in the main checkout
+REPO = ROOT          # private/ lives in the main checkout
 READ = REPO / 'private' / 'readable'
 OUT = REPO / 'private' / 'extracted' / 'readable'
 HEAD = re.compile(r'^//\s*(\S+)\s*[—-]+\s*(.*?)\s*\[confidence:\s*(high|medium|low)\]', re.I)

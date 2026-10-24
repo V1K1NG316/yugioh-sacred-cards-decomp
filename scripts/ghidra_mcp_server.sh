@@ -2,7 +2,7 @@
 # Ghidra MCP server for this ROM: the ghidra-mcp *headless* server (Java, no Ghidra
 # window) plus its MCP bridge (Python), both bound to 127.0.0.1 only.
 #
-#   wsl -d Ubuntu-24.04 --cd /mnt/d/Yugioh_DeComp_V2 -- bash scripts/ghidra_mcp_server.sh start
+#   bash scripts/ghidra_mcp_server.sh start
 #   ... stop      kill both by exact PID (nothing else is touched)
 #   ... status    PIDs, ports, and the server's own /check_connection answer
 #

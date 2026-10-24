@@ -12,7 +12,7 @@ SHA-256 so the values can be compared with the emulator dumps in private/tmp:
              dest byte = i + 768*(i // 256), so reading the buffer at those offsets in image
              order gives the image (dumps: private/tmp/emu_scratch2.bin, cards 1 and 2).
 
-Usage: PY scripts/emu_anchors.py            (prints the hashes; compares with the dumps
+Usage: python3 scripts/emu_anchors.py            (prints the hashes; compares with the dumps
                                              under private/tmp when they are present)
 """
 import hashlib
